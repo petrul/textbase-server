@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+   <teiHeader>
+      <fileDesc>
+         <titleStmt>
+            <title>Das Lied vom blöden Ritter</title>
+            <author>Heinrich Heine</author>
+         </titleStmt>
+         <editionStmt>
+            <edition>
+               <date>2022-11-06T14:39:27Z</date>
+            </edition>
+         </editionStmt>
+         <publicationStmt/>
+         <sourceDesc/>
+      </fileDesc>
+      <profileDesc>
+         <langUsage/>
+         <textClass>
+            <keywords scheme="unknown">
+               <list>
+                  <item/>
+               </list>
+            </keywords>
+         </textClass>
+      </profileDesc>
+      <revisionDesc>
+         <listChange>
+            <change>
+               <name/>
+               <date>2022-11-12T11:16:41.645566468</date>
+            </change>
+         </listChange>
+      </revisionDesc>
+   </teiHeader>
+   <text>                    
+      <body>
+         <head>Das Lied vom blöden Ritter</head>
+         <author>Heinrich Heine</author>
+         <p rend="italic">2022-08-18T11:16:01.293402+00:002012-05-25</p>
+         <div type="div1">
+            <head>Das Lied vom blöden Ritter.</head>
+            <lg>
+               <l>Es war wohl ein Ritter trübselig und stumm,</l>
+               <l>Mit hohlen schneeweißen Wangen;</l>
+               <l>Er schwankte und schlenderte schlotternd herum,</l>
+               <l>In dumpfen Träumen befangen.</l>
+               <l>Er war so hölzern und täppisch und links,</l>
+               <l>Die Blümlein und Mägdlein die kicherten rings,</l>
+               <l>Wenn er stolpernd vorbey gegangen.</l>
+               <l/>
+               <l>Oft saß er im finstersten Winkel zu Haus;</l>
+               <l>Er hatt' sich vor Menschen verkrochen.</l>
+               <l>Da streckte er sehnend die Arme aus,</l>
+               <l>Doch hat er kein Wörtlein gesprochen.</l>
+               <l>Kam aber die Mitternachtstunde heran,</l>
+               <l>Ein seltsames Singen und Klingen begann,</l>
+               <l>An die Thüre da hört er es pochen.</l>
+               <l/>
+               <l>Da kommt seine Liebste geschlichen herein,</l>
+               <l>Im rauschenden Wellenschaumkleide.</l>
+               <l>Sie blüht und glüht wie ein Röselein,</l>
+               <l>Ihr Schleyer ist eitel Geschmeide.</l>
+               <l>Goldlocken umspielen die schlanke Gestalt,</l>
+               <l>Die Auegelein winken mit süßer Gewalt, –</l>
+               <l>In die Arme sinken sich beide.</l>
+               <l/>
+               <l>Der Ritter umschlingt sie mit Liebesmacht,</l>
+               <l>Der Hölzerne steht jetzt in Feuer;</l>
+               <l>Der Blasse erröthet, der Träumer erwacht,</l>
+               <l>Der Blöde wird kühner und freyer.</l>
+               <l>Sie aber sie hat ihn gar schalkhaft geneckt,</l>
+               <l>Sie hat ihm ganz leise den Kopf bedeckt,</l>
+               <l>Mit dem weißen, demantenen Schleyer.</l>
+               <l/>
+               <l>In einen kristallenen Wasserpalast</l>
+               <l>Ist plötzlich gezaubert der Ritter.</l>
+               <l>Er staunt, und die Augen erblinden ihm fast,</l>
+               <l>Vor alle dem Glanz und Geflitter.</l>
+               <l>Doch hält ihn die Nixe umarmet gar traut</l>
+               <l>Der Ritter ist Bräut'gam, die Nixe ist Braut;</l>
+               <l>Ihre Jungfraun die spielen die Zither.</l>
+               <l/>
+               <l>Sie spielen und singen; es tanzen herein</l>
+               <l>Viel winzige Mädchen und Bübchen.</l>
+               <l>Der Ritter der will sich zu Tode freu'n,</l>
+               <l>Und fester umschlingt er sein Liebchen, –</l>
+               <l>Da löschen auf einmal die Kerzen aus,</l>
+               <l>Der Ritter sitzt wieder ganz einsam zu Haus,</l>
+               <l>In dem düstern <hi rend="italic">Poeten</hi>stübchen.</l>
+            </lg>
+            <p rend="italic">H. Heine.</p>
+         </div>
+         <div type="div1">
+            <head>Credits</head>
+            <p>Project Gutenber de.</p>
+            <p rend="justify">Jugendgedicht, nach Heines eigenhändiger Niederschrift im Besitz der Königlichen Bibliothek zu Berlin.</p>
+            <p rend="justify">Originalgetreue Abbildung des Gedichts, von Heine selbst geschrieben</p>
+            <p rend="justify">original_1</p>
+            <p rend="justify">original_1</p>
+         </div>
+      </body>
+   </text>
+</TEI>

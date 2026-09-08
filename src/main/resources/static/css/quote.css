@@ -1,0 +1,102 @@
+/* Standalone/embeddable "quote card" - see FragmentController/quote.html.
+   Deliberately independent of teidiv.css/bootstrap: this page is meant to
+   render cleanly inside an iframe on someone else's site, not just this
+   one, so it carries its own minimal styling. */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
+body {
+    font-family: 'PT Sans Narrow', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px;
+}
+
+.quote-card {
+    position: relative;
+    max-width: 640px;
+    width: 100%;
+    background: #fffdf8;
+    border: 1px solid #e2dccd;
+    border-radius: 4px;
+    padding: 56px 48px 40px 48px;
+    overflow: hidden;
+    box-shadow: 0 2px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Big background quotation marks - purely decorative, sit behind the text. */
+.quote-card::before,
+.quote-card::after {
+    content: '\201C';
+    position: absolute;
+    font-family: 'Alegreya', Georgia, serif;
+    font-weight: 700;
+    font-size: 220px;
+    line-height: 1;
+    color: #c9a961;
+    opacity: 0.16;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.quote-card::before {
+    top: -30px;
+    left: 4px;
+}
+
+.quote-card::after {
+    content: '\201D';
+    bottom: -130px;
+    right: 4px;
+}
+
+.quote-text {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-family: 'Alegreya', Georgia, serif;
+    font-size: 24px;
+    line-height: 1.5;
+    color: #262019;
+}
+
+.quote-text p {
+    margin: 0 0 1em 0;
+}
+
+.quote-text p:last-child {
+    margin-bottom: 0;
+}
+
+.quote-citation {
+    position: relative;
+    z-index: 1;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #e2dccd;
+    font-size: 15px;
+    color: #6b5c49;
+    text-align: right;
+}
+
+.quote-citation a {
+    color: #6b5c49;
+    text-decoration: none;
+}
+
+.quote-citation a:hover {
+    text-decoration: underline;
+}
+
+.quote-citation-sep {
+    margin: 0 6px;
+    opacity: 0.6;
+}

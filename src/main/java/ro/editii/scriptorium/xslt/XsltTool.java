@@ -1,8 +1,7 @@
 package ro.editii.scriptorium.xslt;
 
+import lombok.extern.log4j.Log4j2;
 import net.sf.saxon.TransformerFactoryImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
@@ -10,7 +9,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
@@ -23,9 +21,9 @@ import java.util.Map;
 /**
  * reads a Dom and applyes different xslts
  */
+@Log4j2
 public class XsltTool {
 
-//    private final InputStream inputStream;
     private final Node root;
 
     public XsltTool(InputStream inputStream) {
@@ -52,15 +50,13 @@ public class XsltTool {
     }
 
     /**
-     * @param xsl
      * @param systemId the filename of the xsl, you need to specify this so that the xsl processor be able to resolve relative includes
-     * @param outputStream
      */
     public void applyXslt(InputStream xsl, String systemId, Map<String, String> params, OutputStream outputStream) {
 
-        DOMSource source = new DOMSource(this.root);
-        StreamResult result = new StreamResult(outputStream);
-        Transformer transformer = getTransformer(xsl, systemId);
+        final DOMSource source = new DOMSource(this.root);
+        final StreamResult result = new StreamResult(outputStream);
+        final Transformer transformer = getTransformer(xsl, systemId);
 
         setParams(transformer, params);
 
@@ -80,14 +76,10 @@ public class XsltTool {
         }
     }
 
-
     public static Transformer getTransformer(InputStream xsl, String systemId) {
-        StreamSource streamSource = new StreamSource(xsl, systemId);
-        TransformerFactory tFactory = new TransformerFactoryImpl();
-
+        final StreamSource streamSource = new StreamSource(xsl, systemId);
         try {
-            Transformer transformer = tFactory.newTransformer(streamSource);
-            return transformer;
+            return new TransformerFactoryImpl().newTransformer(streamSource);
         } catch (javax.xml.transform.TransformerException e) {
             throw new RuntimeException(e);
         }
@@ -95,8 +87,8 @@ public class XsltTool {
 
 
     public static void apply(Transformer transformer, Node xml, OutputStream outputStream, Map<String, String> params) {
-        DOMSource source = new DOMSource(xml);
-        StreamResult result = new StreamResult(outputStream);
+        final DOMSource source = new DOMSource(xml);
+        final StreamResult result = new StreamResult(outputStream);
 
         setParams(transformer, params);
 
@@ -108,17 +100,17 @@ public class XsltTool {
     }
 
     public static String apply(Transformer transformer, Node xml, Map<String, String> params) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         apply(transformer, xml, baos, params);
 
-        String res = new String(baos.toByteArray());
+        final String res = new String(baos.toByteArray());
         return res;
     }
 
 
     public static void apply(Transformer transformer, InputStream inputStream, Map<String, String> params, OutputStream outputStream) {
-        Node root = parseInputStreamToNode(inputStream);
+        final Node root = parseInputStreamToNode(inputStream);
         apply(transformer, root, outputStream, params);
     }
 
@@ -127,14 +119,14 @@ public class XsltTool {
     }
 
     public static String apply(Transformer transformer, String xml, Map<String, String> params) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        InputStream is = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        final InputStream is = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
 
         setParams(transformer, params);
 
         apply(transformer, is, params, baos);
 
-        String res = new String(baos.toByteArray());
+        final String res = new String(baos.toByteArray());
         return res;
     }
 
@@ -143,10 +135,10 @@ public class XsltTool {
     }
 
     public String applyXsltForString(InputStream xsl, String systemId, Map<String, String> params) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         this.applyXslt(xsl, systemId, params, baos);
         try {
-            return baos.toString("UTF-8");
+            return baos.toString(StandardCharsets.UTF_8.name());
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -154,7 +146,7 @@ public class XsltTool {
 
     public String applyXslt(File file, Map<String, String> params) {
         try {
-            BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file));
+            final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file));
             return this.applyXsltForString(bufferedInputStream, file.toURI().toString(), params);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
@@ -166,14 +158,15 @@ public class XsltTool {
     }
 
     public String getRawText(Map<String, String> params) throws IOException {
-        URL xsltResource = this.getClass().getClassLoader().getResource("xslt/xml2text.xsl");
+        final URL xsltResource = this.getClass().getClassLoader().getResource("xslt/xml2text.xsl");
         try {
-            String res = this.applyXsltForString(xsltResource.openStream(), xsltResource.toURI().toString(), params);
-            return res;
+            return this.applyXsltForString(
+                    xsltResource.openStream(),
+                    xsltResource.toURI().toString(),
+                    params);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
     
-    final private static Logger LOG = LoggerFactory.getLogger(XsltTool.class);
 }

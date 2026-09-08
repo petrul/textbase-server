@@ -5,4 +5,5 @@ _/_/_/_/    _/_/    _/    _/  _/_/_/_/  _/_/_/      _/_/_/    _/_/_/    _/_/
 _/      _/        _/    _/    _/      _/    _/  _/    _/      _/_/  _/
  _/_/    _/_/_/  _/    _/      _/_/  _/_/_/      _/_/_/  _/_/_/      _/_/_/
 
-SpringBoot v.${spring-boot.version}
+SpringBoot          v.${spring-boot.version}
+Textbase Server     v.${app.version}

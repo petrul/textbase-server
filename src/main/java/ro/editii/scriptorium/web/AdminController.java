@@ -1,8 +1,11 @@
 package ro.editii.scriptorium.web;
 
 
+import io.swagger.v3.oas.annotations.Hidden;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.rest.core.annotation.RestResource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +16,7 @@ import ro.editii.scriptorium.service.AdminService;
 import ro.editii.scriptorium.service.TeiFileDbService;
 import ro.editii.scriptorium.tei.TeiRepo;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
@@ -22,21 +25,14 @@ import java.util.List;
 @CrossOrigin
 @RequestMapping("/admin/_backend")
 @Log
+@RequiredArgsConstructor
+@Hidden
 public class AdminController {
 
-
-    @Autowired
-    TeiRepo teiRepo;
-
-    @Autowired
-    TeiFileRepository teiFileRepository;
-
-    @Autowired
-    TeiFileDbService teiFileDbService;
-
-    @Autowired
-    AdminService adminService;
-
+    final TeiRepo teiRepo;
+    final TeiFileRepository teiFileRepository;
+    final TeiFileDbService teiFileDbService;
+    final AdminService adminService;
 
     @GetMapping("/ping")
     public @ResponseBody String ping() {

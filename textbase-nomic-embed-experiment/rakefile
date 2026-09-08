@@ -1,0 +1,4 @@
+task :run do
+    sh "uv run webapp.py"
+end
+

@@ -10,7 +10,7 @@ import ro.editii.scriptorium.tei.TeiRepo;
 import java.util.Map;
 
 /**
- * equiv of old application-context.xml but in java.
+ * equiv of old application-context.xml but in java
  */
 @Configuration @Log
 public class AppConfig {
@@ -18,10 +18,8 @@ public class AppConfig {
     @Bean
     public TeiRepo teiRepo(@Value("${repo.tei.dirs}") String[] teiDirs,
                            @Value("${repo.tei.filter:}") String repoTeiFilter) {
-        CombinedTeiRepo combinedTeiRepo = new CombinedTeiRepo(
+        return new CombinedTeiRepo(
                 Map.of(TeiRepo.PROP_KEY_FILTER, repoTeiFilter),
-                teiDirs);
-        return combinedTeiRepo;
+                    teiDirs);
     }
-
 }

@@ -1,28 +1,218 @@
 package ro.editii.scriptorium.rest;
 
+import io.milvus.response.SearchResultsWrapper;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Size;
+import lombok.extern.log4j.Log4j2;
+import org.apache.commons.lang3.time.StopWatch;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-import ro.editii.scriptorium.dao.TeiDivRepository;
-import ro.editii.scriptorium.dto.AuthorsAndTeiDivsDto;
-import ro.editii.scriptorium.service.AuthorsAndTeiDivs;
-import ro.editii.scriptorium.service.SearchService;
+import ro.editii.scriptorium.Util;
+import ro.editii.scriptorium.dto.AuthorDto;
+import ro.editii.scriptorium.dto.EnvelopeDto;
+import ro.editii.scriptorium.dto.HitDto;
+import ro.editii.scriptorium.dto.HitsDto;
+import ro.editii.scriptorium.model.Author;
+import ro.editii.scriptorium.model.TeiDiv;
+import ro.editii.scriptorium.model.TeiElem;
+import ro.editii.scriptorium.search.content.ContentResolver;
+import ro.editii.scriptorium.service.ControllerTool;
+import ro.editii.scriptorium.service.DbSearchService;
+import ro.editii.scriptorium.service.DivService;
+import ro.editii.scriptorium.vector.*;
 
-import javax.validation.constraints.Size;
+import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/search")
-public class SearchRestController {
-    @Autowired
-    TeiDivRepository teiDivRepository;
+@CrossOrigin
+@Log4j2
+public class SearchRestController extends CommonControllerUtil {
 
-    @Autowired
-    SearchService searchService;
+    // bounds the embedder fallback call in ann() below - see MilvusTextSearchService
+    // for the same pattern/reasoning.
+    private static final int EMBED_TIMEOUT_SECONDS = 15;
 
-    @GetMapping("")
+    final DbSearchService dbSearchService;
+    final MilvusTextSearchService milvusTextSearchService;
+    final DivService divService;
+    @Autowired ControllerTool controllerTool;
+    @Autowired MilvusCollection milvusCollection;
+    @Autowired Embedder embedder;
+    @Autowired ContentResolver contentResolver;
+    @Autowired VectorSearchAvailability vectorSearchAvailability;
+
+    public SearchRestController(Environment environment,
+                                DbSearchService dbSearchService,
+                                MilvusTextSearchService milvusTextSearchService,
+                                DivService divService) {
+        super(environment);
+        this.dbSearchService = dbSearchService;
+        this.milvusTextSearchService = milvusTextSearchService;
+        this.divService = divService;
+    }
+
+    @GetMapping("/authors")
     @ResponseBody
-    public AuthorsAndTeiDivsDto search(@RequestParam @Size(min = 3) String q, UriComponentsBuilder uriComponentsBuilder) {
-        AuthorsAndTeiDivs authorsAndTeiDivs= this.searchService.searchAuthorsAndWorks(q);
-        return AuthorsAndTeiDivsDto.from(authorsAndTeiDivs, uriComponentsBuilder);
+    public List<HitDto> searchAuthors(@RequestParam(name = "q") @Size(min = 3) String q,
+                                      @RequestParam(name="limit", required = false, defaultValue = "10") int limit,
+                                      UriComponentsBuilder uriComponentsBuilder,
+                                      HttpServletRequest httpServletRequest) {
+        final List<Author> authors = this.dbSearchService.findAuthors(q, limit);
+        final List<HitDto> resp = authors.stream().map(it -> HitDto.from(it,
+                Util.cloneUriComponentBuilder(uriComponentsBuilder, httpServletRequest))).toList();
+        resp.forEach(it -> {
+            final AuthorDto auth = (AuthorDto) it.getData();
+            auth.setImage_href(
+                    this.getAuthorThumb(auth.getStrId(),
+                            uriComponentsBuilder, httpServletRequest));
+        });
+        return resp;
+    }
+
+    @GetMapping("/divHeads")
+    @ResponseBody
+    public List<HitDto> searchDivHeads(@RequestParam(name = "q") @Size(min = 3) String q,
+                                      @RequestParam(name = "limit", required = false, defaultValue = "10") int limit,
+                                      UriComponentsBuilder uriComponentsBuilder) {
+        final StopWatch watch = new StopWatch(); watch.start();
+
+        final List<TeiDiv> divs = this.dbSearchService.findDivHeads(q, limit);
+        final var resp = divs.stream().map(it -> HitDto.from(it, uriComponentsBuilder)).toList();
+
+        watch.stop();
+
+        log.info(String.format("searchDivHeads q=[%s](%d). took %s",
+                Util.maxNCharsEllipsis(q, 10),
+                q.length(),
+                watch));
+
+        return resp;
+    }
+
+    @GetMapping("/milvus")
+    @ResponseBody
+    public List<HitDto> searchMilvus(
+            @RequestParam(name = "q") @Size(min = 3) String q,
+            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit,
+            UriComponentsBuilder uriComponentsBuilder) {
+        final StopWatch watch = new StopWatch(); watch.start();
+
+        final var divs = this.dbSearchService.searchMilvus(q, limit);
+
+        watch.stop();
+
+        final var resp  = divs.stream().map(it -> HitDto.from(it)).toList();
+
+        log.info(String.format("searchMilvus q=[%s](%d). took %s",
+                Util.maxNCharsEllipsis(q, 10),
+                q.length(),
+                watch));
+
+        return resp;
+
+    }
+
+    @GetMapping("/grep")
+    @ResponseBody
+    public List<HitDto> searchGrep(
+            @RequestParam(name = "q") @Size(min = 3) String q,
+            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
+        final StopWatch watch = new StopWatch(); watch.start();
+
+        final var hits = this.dbSearchService.searchGrep(q, limit);
+
+        watch.stop();
+
+        final var resp = hits.stream().map(HitDto::from).toList();
+
+        log.info(String.format("searchGrep q=[%s](%d). took %s",
+                Util.maxNCharsEllipsis(q, 10),
+                q.length(),
+                watch));
+
+        return resp;
+    }
+
+    @GetMapping("/lucene")
+    @ResponseBody
+    public List<HitDto> searchLucene(
+            @RequestParam(name = "q") @Size(min = 3) String q,
+            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit,
+            UriComponentsBuilder uriComponentsBuilder) {
+        final StopWatch watch = new StopWatch(); watch.start();
+
+        final var hits = this.dbSearchService.searchLucene(q, limit);
+
+        watch.stop();
+
+        final var resp = hits.stream().map(HitDto::from).toList();
+
+        log.info(String.format("searchLucene q=[%s](%d). took %s",
+                Util.maxNCharsEllipsis(q, 10),
+                q.length(),
+                watch));
+
+        return resp;
+    }
+
+    /**
+     * ANN : approximate nearest neighbour
+     * nearest k
+     */
+    @Operation(description = "gets ")
+    @GetMapping("/ann")
+    public EnvelopeDto.Hits ann(
+            @RequestParam(name = "path", required = false) String path,
+            @RequestParam(name = "divid", required = false) Long divid,
+            UriComponentsBuilder uriComponentsBuilder, HttpServletRequest request
+    ) {
+        if (!this.vectorSearchAvailability.isAvailable())
+            return EnvelopeDto.Hits.builder().data(new HitsDto(new HitDto[0])).build();
+
+        final TeiElem elem;
+
+        if (path == null && divid == null)
+            throw new IllegalArgumentException("either 'path' or 'divid' must be provided");
+
+        if (path != null) {
+            elem = this.divService.getByPath(path);
+        } else {
+            elem = this.divService.getById(divid);
+        }
+
+        final var elemInfo = elem.toElemInfo();
+        final var text = this.controllerTool.teiElemToString(elemInfo);
+        final var sha256 = Util.sha256Hex(text);
+        final Content content = this.milvusCollection.findBySha256(sha256);
+        final float[] vector;
+        if (content != null) {
+            // it's already in milvus
+            vector = content.getEmbedding();
+        } else {
+            // it's not already in milvus, need to compute it - bounded so a
+            // slow/GPU-contended Ollama degrades this one request to empty
+            // results instead of hanging it.
+            try {
+                vector = Util.runWithTimeout(() -> this.embedder.encode(text), EMBED_TIMEOUT_SECONDS);
+            } catch (Exception e) {
+                log.warn("Embedder call failed/timed out ({}) - degrading to empty results for this ann() call.", e.getMessage());
+                return EnvelopeDto.Hits.builder().data(new HitsDto(new HitDto[0])).build();
+            }
+        }
+        final SearchResultsWrapper search = this.milvusCollection.search(vector, 20);
+        final var hits = VectorUtils.searchResultsWrapperToHits(search, this.contentResolver);
+        final HitDto[] dtos = hits.stream().map(it -> {
+            final var dto = HitDto.from(it);
+            return dto;
+        }).toArray(HitDto[]::new);
+
+        return EnvelopeDto.Hits.builder()
+                .data(new HitsDto(dtos))
+                .build();
     }
 }

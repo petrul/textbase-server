@@ -1,22 +1,26 @@
 package ro.editii.scriptorium.model;
 
-import java.io.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.web.util.UriComponentsBuilder;
+import ro.editii.scriptorium.Util;
+
+import java.io.Serializable;
 import java.sql.Blob;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import javax.persistence.*;
-
-import lombok.*;
-import ro.editii.scriptorium.Util;
-
 @Entity
 @Data
 @Builder @NoArgsConstructor @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Author implements Comparable<Author> {
+public class Author implements Comparable<Author>, Serializable {
 
     final public static String ANONYMOUS_AUTHOR = "[ANON]"; // the bible for ex.
+    public static final int NAME_COL_MAX_LENGTH = 255;
 
     // mapping  caragiale => Caragiale,Ion-Luca
     public static Properties RECOMMENDED_AUTHOR_MAPPINGS;
@@ -31,8 +35,8 @@ public class Author implements Comparable<Author> {
     static {
         RECOMMENDED_AUTHOR_MAPPINGS = Util.readRecommendedAuthorMappings();
         RECOMMENDED_AUTHOR_MAPPINGS.keySet().forEach( (key) -> {
-            String skey = (String) key;
-            String value = RECOMMENDED_AUTHOR_MAPPINGS.getProperty(skey);
+            final String skey = (String) key;
+            final String value = RECOMMENDED_AUTHOR_MAPPINGS.getProperty(skey);
             RECOMMENDED_AUTHOR_MAPPINGS_REV.setProperty(value, skey);
         });
 
@@ -45,34 +49,37 @@ public class Author implements Comparable<Author> {
     Long id;
 
     /**
-     * e.g. balcescu, should be all-lowercase, no-accent version of lastName
+     * i.e. balcescu, should be all-lowercase, no-accent version of lastName
      */
     @Column(unique = true)
     String strId;
 
     /**
-     * Alecsandri
+     * e.g. Alecsandri
      */
     @EqualsAndHashCode.Include
-    String lastName;
+    @Column(length = NAME_COL_MAX_LENGTH)
+    protected String lastName;
 
     /**
      * e.g. Vasile
      */
     @EqualsAndHashCode.Include
-    String firstName;
+    @Column(length = NAME_COL_MAX_LENGTH)
+    protected String firstName;
 
     /**
      * e.g. "Alecsandri,Vasile". the file name as in the TEI. maybe useful for identifying authors
      * that have already been inserted
      */
-    @Column(unique = true)
+    @JsonIgnore
+    @Column(unique = true, length = NAME_COL_MAX_LENGTH)
     String originalNameInTeiFile;
 
     // prefered display name; if null, computed from firstName and lastName by method getVisualName()
     String displayName;
 
-    String description; // remove
+//    String description; // remove
 
     @Lob @ToString.Exclude
     Blob avatar;
@@ -96,7 +103,7 @@ public class Author implements Comparable<Author> {
         if (Author.SPECIAL_AUTHORS.containsKey(originalNameInTeiFile))
             return Author.SPECIAL_AUTHORS.get(originalNameInTeiFile);
 
-        Author author = new Author();
+        final Author author = new Author();
 
         List<String> strings;
         if (originalNameInTeiFile.contains(",")) {
@@ -124,10 +131,10 @@ public class Author implements Comparable<Author> {
 
         String strings_0_trimmed = strings.get(0);
         if (strings.size() == 2) { // most common case
-            author.lastName = strings_0_trimmed;
-            if (author.lastName.equals(ANONYMOUS_AUTHOR))
+            author.setLastName(strings_0_trimmed);
+            if (author.getLastName().equals(ANONYMOUS_AUTHOR))
                 throw new IllegalArgumentException("last name of author should not be " + ANONYMOUS_AUTHOR);
-            author.firstName = strings.get(1);
+            author.setFirstName(strings.get(1));
 
         } else
         if (strings.size() == 1) {
@@ -137,21 +144,15 @@ public class Author implements Comparable<Author> {
                 "NONE".equals(strings_0_trimmed.toUpperCase()))
                 author.setLastName(ANONYMOUS_AUTHOR);
             else
-                author.lastName = strings_0_trimmed;
+                author.setLastName(strings_0_trimmed);
         } else {
             // more than two names: first is last, the rest are joined as composed first name
-            author.lastName = strings_0_trimmed;
+            author.setLastName(strings_0_trimmed);
             List<String> subarr = strings.subList(1, strings.size());
-            author.firstName = String.join(" ", subarr).trim();
+            author.setFirstName(String.join(" ", subarr).trim());
         }
 
-        author.originalNameInTeiFile = recomposeOriginalFromParsedAuthor(author);
-
-        // the strId is not set here. this is because we can only agree on a proper strId by looking
-        // into the db. ParseTeiFileIntoDb#compute_strid_for_new_author
-
-        //author.strId = Util.urlFriendify(author.lastName);
-
+        author.setOriginalNameInTeiFile(recomposeOriginalFromParsedAuthor(author));
 
         return author;
     }
@@ -181,10 +182,12 @@ public class Author implements Comparable<Author> {
         return ANONYMOUS_AUTHOR.equals(this.lastName);
     }
 
+    @JsonIgnore
     public boolean isOneNamed() {
         return this.lastName != null && this.lastName.length() > 0 && this.firstName == null;
     }
 
+    @JsonIgnore
     public boolean isTwoNamed() {
         return this.lastName != null && this.lastName.length() > 0
                 && this.firstName != null && this.firstName.length() > 0;
@@ -209,5 +212,21 @@ public class Author implements Comparable<Author> {
             return 0;
         result = thisFirstName.compareTo(thatFirstName);
         return result;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = Util.maxNCharsOf(lastName, NAME_COL_MAX_LENGTH);
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = Util.maxNCharsOf(firstName, NAME_COL_MAX_LENGTH);
+    }
+
+    public void setOriginalNameInTeiFile(String str) {
+        this.originalNameInTeiFile = Util.maxNCharsOf(str, NAME_COL_MAX_LENGTH);
+    }
+
+    public String getUrl(UriComponentsBuilder ucb) {
+        return ucb.path(this.getStrId()).build().toUriString();
     }
 }

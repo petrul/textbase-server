@@ -1,0 +1,21 @@
+package ro.editii.scriptorium.kafka;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import ro.editii.scriptorium.dto.TeiDivDto;
+
+@RequiredArgsConstructor
+@Component
+public class KafkaTextbaseEventsPublisher implements TextbaseEventsPublisher {
+
+    final KafkaProducer kafkaProducer;
+    final KafkaProps kafkaProps;
+
+    public void signalNewOpusImported(TeiDivDto div) {
+        this.kafkaProducer.sendAsJson(this.kafkaProps.getNewOpusImportedTopicName(), div);
+    };
+
+    public void signalOpusReimported(TeiDivDto div) {
+        this.kafkaProducer.sendAsJson(this.kafkaProps.getOpusReimportedTopicName(), div);
+    }
+}

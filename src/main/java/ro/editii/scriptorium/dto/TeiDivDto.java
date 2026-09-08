@@ -1,24 +1,24 @@
 package ro.editii.scriptorium.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.web.util.UriComponentsBuilder;
 import ro.editii.scriptorium.model.TeiDiv;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Data
-@NoArgsConstructor
-@ToString
-public class TeiDivDto {
-    String path;
-    String urlFragment;
+@NoArgsConstructor @AllArgsConstructor @Builder @EqualsAndHashCode(callSuper = true)
+public class TeiDivDto extends TeiElemDto implements Comparable<TeiDivDto> {
+
     String head;
-    String url;
     int depth;
 
-    int size;
-    int wordSize;
-
     TeiDivDto[] children;
-    TeiDivDto parent;
+    AuthorDto author;
+
+    boolean leaf; // true if has no children
+    boolean opus; // true if root-level work
 
     @Builder(builderMethodName = "teiDivDtoBuilder")
     public TeiDivDto(String path, String urlFragment, String head,  String url, int depth,
@@ -41,13 +41,30 @@ public class TeiDivDto {
     }
 
     public static TeiDivDto fromTeiDiv(TeiDiv teiDiv, String baseUrl) {
-        TeiDivDto dto = new TeiDivDto();
-        dto.url = baseUrl + teiDiv.getAuthor().getStrId() + "/" + teiDiv.getUrl();
-        dto.head = teiDiv.getHead();
-        dto.depth = teiDiv.getDepth();
-        dto.size = teiDiv.getSize();
-        dto.wordSize = teiDiv.getWordSize();
+        if (teiDiv == null) return null;
+        final var _baseUrl = baseUrl != null && baseUrl.endsWith("/") ?
+                baseUrl : String.format("%s/", baseUrl);
+
+        final TeiDivDto dto = new TeiDivDto() {{
+            id = teiDiv.getId();
+            url = _baseUrl + teiDiv.getAuthor().getStrId() + "/" + teiDiv.getUrl();
+            head = teiDiv.getHead();
+            depth = teiDiv.getDepth();
+            size = teiDiv.getSize();
+            wordSize = teiDiv.getWordSize();
+            urlFragment = teiDiv.getUrlFragment();
+            leaf = teiDiv.isLeaf();
+            opus = teiDiv.isOpus();
+            path = teiDiv.getCompletePath();
+            author = AuthorDto.from(teiDiv.getAuthor());
+            xpath = teiDiv.getXpath();
+        }};
 
         return  dto;
+    }
+
+    @Override
+    public int compareTo(@NotNull TeiDivDto that) {
+        return this.getId().compareTo(that.getId());
     }
 }

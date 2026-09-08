@@ -1,0 +1,131 @@
+package ro.editii.scriptorium.vector;
+
+import io.milvus.client.MilvusServiceClient;
+import io.milvus.param.ConnectParam;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
+import org.springframework.web.client.RestTemplate;
+import ro.editii.scriptorium.client.TextbaseClient;
+import ro.editii.scriptorium.search.content.UrlContentResolver;
+
+@Configuration
+@Log4j2
+public class VectorConfig {
+
+    public static final String TEXTBASE_CLIENT = "textbaseClient";
+
+    @Bean
+    public MilvusServiceClient milvusClient(
+            @Value("${milvus.host}")        String milvusHost,
+            @Value("${milvus.port}")        int milvusPort
+    ) {
+        log.info(String.format("MilvusServiceClient: %s:%d", milvusHost, milvusPort));
+        return new MilvusServiceClient(ConnectParam.newBuilder()
+            .withHost(milvusHost)
+            .withPort(milvusPort)
+            .build()
+        );
+    }
+
+    final static String ALL_MINILM_L6_V2 = "all-MiniLM-L6-v2";
+    final static String ALL_MPNET_BASE_V2 = "all-mpnet-base-v2";
+
+    // The STS-backed models remain available by qualifier. BGE-M3 below is
+    // the primary because semantic queries must use the same encoder as the
+    // vectors written by textbase-nestjs.
+
+    @Bean
+    public StsEmbedder model_prod_all_MiniLM_L6_v2(
+            @Value("${sts.host}") String stsHost,
+            @Value("${sts.port}") int stsPort,
+            RestTemplate restTemplate
+    ) {
+        final StsEmbedder embedder = new StsEmbedder(stsHost, stsPort, ALL_MINILM_L6_V2, MilvusCollection.DIM_384, restTemplate);
+        log.info(embedder.toString());
+        return embedder;
+    }
+
+
+    @Bean
+    public StsEmbedder model_all_mpnet_base_v2 (
+            @Value("${sts.host}") String stsHost,
+            @Value("${sts.port}") int stsPort,
+            RestTemplate restTemplate
+    ) {
+        return new StsEmbedder(stsHost, stsPort, ALL_MPNET_BASE_V2, MilvusCollection.DIM_768, restTemplate);
+    }
+
+    // Ollama-backed embedders - both served by the same Ollama instance
+    // (ollama.host:ollama.port), any pulled model addressable just by name.
+    // All stay reachable by their own bean names for callers/tests built
+    // against them specifically.
+
+    @Bean
+    @Primary
+    public Embedder bgeM3Embedder(
+            @Value("${embedder.host}") String ollamaHost,
+            @Value("${embedder.port}") int ollamaPort,
+            RestTemplate restTemplate
+    ) {
+        final Embedder embedder = new OllamaEmbedder(ollamaHost, ollamaPort, "bge-m3", "BGE_M3", MilvusCollection.DIM_1024, restTemplate);
+        log.info(embedder.toString());
+        return embedder;
+    }
+
+    @Bean
+    public Embedder qwen3EmbeddingEmbedder(
+            @Value("${embedder.host}") String ollamaHost,
+            @Value("${embedder.port}") int ollamaPort,
+            RestTemplate restTemplate
+    ) {
+        final Embedder embedder = new OllamaEmbedder(ollamaHost, ollamaPort, "qwen3-embedding:4b", "QWEN3_EMBEDDING_4B", MilvusCollection.DIM_2560, restTemplate);
+        log.info(embedder.toString());
+        return embedder;
+    }
+
+    @Bean
+    public Embedder nomicEmbedder(
+            @Value("${embedder.host}") String ollamaHost,
+            @Value("${embedder.port}") int ollamaPort,
+            RestTemplate restTemplate
+    ) {
+        final Embedder embedder = new OllamaEmbedder(ollamaHost, ollamaPort, "nomic-embed-text:v1.5", "NOMIC_EMBED_TEXT", MilvusCollection.DIM_768, restTemplate);
+        log.info(embedder.toString());
+        return embedder;
+    }
+
+    @Bean
+    MilvusCollection prodCollection(MilvusService milvusService,
+            // This exact name is also configured in textbase-nestjs .env.dev.
+            @Value("${milvus.collection:int_tb_paras_bge_m3}") String collectionName) {
+
+        final MilvusCollection col = new MilvusCollection(milvusService, collectionName) {
+            @Override
+            public void create(int vectorDimension) {
+                throw new IllegalStateException("create disabled for production read-only collection " + name);
+            }
+        };
+        log.info(col.toString());
+        return col;
+    }
+
+    @Bean(TEXTBASE_CLIENT)
+    public TextbaseClient textbaseClient(@Value("${textbase.advertised.url:https://textbase.scriptorium.ro}") String baseUrl, RestTemplate restTemplate) {
+        return new TextbaseClient(baseUrl, restTemplate);
+    }
+
+    @Bean
+    public UrlContentResolver urlContentResolver(@Lazy RestTemplate restTemplate) {
+        return new UrlContentResolver(restTemplate);
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+}

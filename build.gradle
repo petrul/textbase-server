@@ -1,11 +1,20 @@
+import java.util.regex.Matcher
+
+buildscript {
+    dependencies {
+        classpath('io.swagger:swagger-codegen:2.4.14')
+    }
+}
+
 plugins {
-    id 'org.springframework.boot' version '2.7.3'
-    id 'io.spring.dependency-management' version '1.0.13.RELEASE'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
     id 'java'
     id 'groovy'
     id 'eclipse'
     id 'idea'
     id "maven-publish"
+    id 'org.hidetake.swagger.generator' version  '2.19.2'
 }
 
 idea {
@@ -15,8 +24,11 @@ idea {
 }
 
 group = 'ro.editii'
-version = '0.7-SNAPSHOT'
-sourceCompatibility = 11
+version = '0.9.1-SNAPSHOT'
+
+java {
+    sourceCompatibility = '25'
+}
 
 defaultTasks "bootRun"
 
@@ -38,49 +50,83 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+clean.doFirst {
+    delete "${rootDir}/out/"
+}
+
 publishing {
     publications {
-        // myLibrary(MavenPublication) { // plain small jar
-        //     from components.java
-        // }
         bootJava(MavenPublication) { // fat jar
             artifact bootJar
         }
     }
 
     repositories {
+
+        // final nexusUser  = System.getenv() ['NEXUS_TEAMCITY_USER']
+        // final nexusPwd   = System.getenv() ['NEXUS_TEAMCITY_PASSWORD']
+
+        // if (nexusUser == null) println "warn: missing NEXUS_TEAMCITY_USER env variable"
+        // if (nexusPwd  == null) println "warn: missing NEXUS_TEAMCITY_PASSWORD env variable"
+
+        // maven {
+        //     name 'nexus'
+        //     if(project.version.endsWith('-SNAPSHOT')) {
+        //         url = "http://mini.local:5002/repository/maven-snapshots/"
+        //     } else {
+        //         url = "http://mini.local:5002/repository/maven-releases/"
+        //     }
+        //     allowInsecureProtocol true
+        //     credentials {
+        //         username nexusUser
+        //         password nexusPwd
+        //     }
+        // }
         maven {
-            name = 'myRepo'
-             if(project.version.endsWith('-SNAPSHOT')) {
-                url = "file:///gv0/repo/snapshots"
-            } else {
-                url = "file:///gv0/repo/releases"
-            }
+            name = "gv0"
+			final gv0Root = "/media/gv0/repo"
+			if(project.version.endsWith('-SNAPSHOT')) {
+				url = "$gv0Root/snapshots/"
+			} else {
+				url = "$gv0Root/releases/"
+			}
         }
     }
 }
 
 def static getGitLatestCommit() {
     final String cmd = 'git log -n 1 --pretty=format:%H 2>&1'
-    final String str = cmd.execute().text.trim() //.substring(0,8);
+    final String str = cmd.execute().text.trim()
     return str
 }
 
 processResources {
     // interested particularly in application.properties and version.properties
+//    println "version.properties var expansion ..."
     filesMatching("**/version.properties") {
-        def prop = [
+        final prop = [
             "buildnumber" : System.getenv()['BUILD_NUMBER'],
             "version" : project.properties['version'],
             'builddate' : new Date().toString(),
             'git_latest_commit': getGitLatestCommit(),
-            'git_branch': 'git rev-parse --abbrev-ref HEAD'.execute().text,
+            'git_branch': 'git rev-parse --abbrev-ref HEAD'.execute().text.trim(),
             'buildmachine' : 'hostname'.execute().text
         ]
-        expand(prop)
+        filter ( line -> {
+            Matcher m = line =~ /(@@([\w\_\.]+)@@)/
+            if (m) {
+                final outer = m[0][1]
+                final inner = m[0][2]
+                if (prop[inner]) {
+                    final resp = line.replaceAll(outer, prop[inner])
+                    return resp
+                } else
+                    line
+            } else
+                return line
+        })
     }
 }
-
 
 // asta e ca sa mearga devtools cand execut $ gradle bootRun
 configurations {
@@ -90,6 +136,7 @@ configurations {
 	}
 }
 
+final luceneVersion = '9.9.1'
 dependencies {
 
 //	implementation('org.springframework.boot:spring-boot-starter-data-cassandra')
@@ -97,57 +144,103 @@ dependencies {
 	implementation('org.springframework.boot:spring-boot-starter-data-jpa')
 	implementation('org.springframework.boot:spring-boot-starter-data-rest')
 	implementation('org.springframework.boot:spring-boot-starter-web')
+	implementation('org.springframework.boot:spring-boot-starter-restclient')
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("javax.validation:validation-api:2.0.1.Final")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation('org.springframework.boot:spring-boot-starter-kafka')
 
+    implementation('org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2')
+
+    implementation('com.github.ben-manes.caffeine:caffeine')
 
     implementation group: 'commons-cli', name: 'commons-cli', version: '1.4'
-    implementation(group: 'mysql', name: 'mysql-connector-java', version: '8.0.13')
+    implementation 'mysql:mysql-connector-java:8.0.26'
 
 	implementation group: 'commons-io', name: 'commons-io', version: '2.6'
     implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
-    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'org.apache.commons:commons-lang3'
     implementation group: 'org.apache.commons', name: 'commons-text', version: '1.1'
     implementation group: 'com.ibm.icu', name: 'icu4j', version: '71.1'
 
     implementation group: 'net.sf.saxon', name: 'Saxon-HE', version: '9.9.0-2'
-    implementation 'org.codehaus.groovy:groovy-all:3.0.12'
+    implementation 'org.codehaus.groovy:groovy-all:3.0.25'
 
-    implementation group: 'org.apache.lucene', name: 'lucene-core', version: '7.6.0'
-    implementation group: 'org.apache.lucene', name: 'lucene-demo', version: '7.6.0'
-    implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: '7.6.0'
-    implementation group: 'org.apache.lucene', name: 'lucene-queries', version: '7.6.0'
-    implementation group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '7.6.0'
-    implementation group: 'org.apache.lucene', name: 'lucene-snowball', version: '3.0.3'
+    implementation group: 'org.apache.lucene', name: 'lucene-core', version: luceneVersion
+    implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: luceneVersion
+    implementation group: 'org.apache.lucene', name: 'lucene-queries', version: luceneVersion
+    // Was 'lucene-analyzers-common:8.11.2' - that artifact was renamed to
+    // 'lucene-analysis-common' from Lucene 9 onward, and the 8.x jar doesn't
+    // match lucene-core 9.9.1's API (e.g. IndexSearcher.doc() -> storedFields()).
+    // lucene-demo/lucene-snowball dropped: unused (no demo code; the
+    // per-language stemmers this module ships - RomanianAnalyzer etc, see
+    // search/lucene/LuceneAnalyzers.java - cover stemming instead).
+    implementation group: 'org.apache.lucene', name: 'lucene-analysis-common', version: luceneVersion
+
+    // Detects a TEI document's language from its own text at import time
+    // (see LanguageDetectionService) - replaces guessing the language from
+    // the file's directory path (TeiDirRepoImpl.getLanguageHint), which
+    // silently returned null for anything not filed under a language-coded
+    // folder. Pure JVM, no native/network dependency, ships its own
+    // per-language n-gram models.
+    implementation 'com.github.pemistahl:lingua:1.2.2'
+
+    implementation 'io.milvus:milvus-sdk-java:2.3.4'
+
+    implementation 'com.seanox:seanox-spring-webdav:3.5.0'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     runtimeOnly('org.springframework.boot:spring-boot-devtools')
 	testImplementation('org.springframework.boot:spring-boot-starter-test')
+    testImplementation('org.springframework.boot:spring-boot-starter-kafka-test')
+    testImplementation('org.springframework.boot:spring-boot-starter-restclient-test')
+    testImplementation('org.springframework.boot:spring-boot-starter-webmvc-test')
     testImplementation group: 'com.h2database', name: 'h2', version: '2.1.214'
+
+
+//    swaggerCodegen 'io.swagger:swagger-codegen-cli:2.4.34'             // Swagger Codegen V2
+//    swaggerCodegen 'io.swagger.codegen.v3:swagger-codegen-cli:3.0.47'  // or Swagger Codegen V3
+    swaggerCodegen 'org.openapitools:openapi-generator-cli:3.3.4'     // or OpenAPI Generator
 }
 
-/*
- * run like this:
- *  $ gradle  importTeiDivs --args="$HOME/work/scriptorium-masters/tei/"
- */
-task importTeiDivs(dependsOn: 'classes', type: JavaExec) {
-    main = "ro.editii.scriptorium.cli.TeiDivImporterCli"
-    classpath = sourceSets.main.runtimeClasspath
-    jvmArgs("-Dspring.profiles.active=cli,air -Dserver.port=7999")
-}
+///*
+// * run like this:
+// *  $ gradle  importTeiDivs --args="$HOME/work/scriptorium-masters/tei/"
+// */
+//task importTeiDivs(dependsOn: 'classes', type: JavaExec) {
+//    mainClass = "ro.editii.scriptorium.cli.TeiDivImporterCli"
+//    classpath = sourceSets.main.runtimeClasspath
+//    jvmArgs("-Dspring.profiles.active=cli,air -Dserver.port=7999")
+//}
 
 bootRun {
-    systemProperties['spring.profiles.active'] = project.properties['profile']
+    jvmArgs '-Xss10m' // add line
+    final profileProperty = ['dev', 'ci', 'prod'].find { project.hasProperty(it) }
+    final configuredProfiles = System.getenv('SPRING_PROFILES_ACTIVE') ?: profileProperty
+    final activeProfiles = ['autoimport']
+    if (configuredProfiles != null && !configuredProfiles.isBlank()) {
+        activeProfiles.addAll(configuredProfiles.split(',').findAll { !it.isBlank() })
+    }
+    systemProperties['spring.profiles.active'] = activeProfiles.join(',')
     println "bootRun: spring.profiles.active = " + systemProperties['spring.profiles.active']
 }
 
 
 test {
-    def profile = project.properties["profile"]
-    systemProperty "spring.profiles.active", profile
-    println("test:spring.profiles.active = " + systemProperties["spring.profiles.active"])
+    jvmArgs '-Xss10m' // needed for the recursion of serializing DOM Nodes
+    // $ ./gradlew -Pdev test   or   $ ./gradlew -Pci test
+    // NOTE: no '-Ptest' case here on purpose - every Gradle project with the
+    // java/groovy plugins already has a task named 'test', and Gradle exposes
+    // tasks as dynamic properties on the project, so hasProperty('test') is
+    // ALWAYS true regardless of any -P flag actually passed. Learned this the
+    // hard way: it was silently overriding -Pdev/-Pci/-Pprod every time.
+    if (project.hasProperty('dev')) systemProperty 'spring.profiles.active', 'dev'
+    if (project.hasProperty('ci'))  systemProperty 'spring.profiles.active', 'ci'
+    if (project.hasProperty('prod'))  systemProperty 'spring.profiles.active', 'prod'
+    final resolvedProfile = systemProperties['spring.profiles.active'] ?: System.getenv('SPRING_PROFILES_ACTIVE') ?: '(none)'
+    println "test: spring.profiles.active = " + resolvedProfile
 //    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
 
@@ -161,64 +254,158 @@ jar {
 }
 
 bootJar {
-    classifier = 'application'
+    archiveClassifier = 'application'
     archiveAppendix = "b" + System.getenv()['BUILD_NUMBER']
 }
 
-// the admin app
-task runAdminIonicBuild {
-    final String dir = "src/main/webapp/admin"
-    final String subpath = "admin"
+// The admin (src/main/webapp/admin) and textbase (src/main/webapp/textbase)
+// Ionic apps used to be built here and copied into
+// build/resources/main/static/{admin,app} - both are now their own
+// standalone sibling repos (textbase-admin-ui, textbase-ionic-ui), built
+// and deployed independently. No node/npm/ionic build step runs as part of
+// this build anymore.
+
+// docker
+
+def runShellCommand(String cmd) {
+    p "will run \$ $cmd"
+    final proc = cmd.execute()
+    p "stdout follows: "
+    p "==============="
+    p proc.text
+    proc.waitFor()
+
+    final exitValue = proc.exitValue()
+    p "exit value: $exitValue"
+    if (exitValue != 0) {
+        throw new GroovyRuntimeException("cmd $cmd finished with non-zero exit value $exitValue")
+    }
+}
+
+final imagelabel="editii/textbase-server:$version"
+tasks.register("docker") {
+    dependsOn 'build'
     doLast {
-        exec {
-            workingDir "./$dir"
-            executable 'npm'
-            args 'install'
-        }
-        exec {
-            workingDir "./$dir"
-            executable 'ionic'
-            args 'build', "--prod", "--", "--base-href=/$subpath/"
-        }
-        copy {
-            from "./$dir/www/"
-            into "$buildDir/resources/main/static/$subpath"
+        runShellCommand("pwd")
+        final cmd = """docker build \
+            -f docker/dockerfile            \
+            -t $imagelabel ."""
+        runShellCommand(cmd)
+    }
+}
+
+final registry = "mini.local:5000"
+tasks.register("docker-publish") {
+    dependsOn("docker")
+    doLast {
+        runShellCommand("pwd")
+        final remoteimagelabel = "$registry/$imagelabel"
+        def cmd = "docker tag $imagelabel $remoteimagelabel"
+
+        runShellCommand(cmd)
+
+        cmd = "docker push $remoteimagelabel"
+
+        runShellCommand(cmd)
+    }
+}
+
+def p(args) { println(args) }
+
+// this for bug in gradle 8 on starting main from idea
+gradle.taskGraph.whenReady {
+    tasks.withType(JavaExec) {
+        if (name.endsWith(".main()")) {
+            println("Setting executable to java launcher for ${name}")
+            it.setExecutable(javaLauncher.get().executablePath.asFile.absolutePath)
         }
     }
 }
 
-// the regular app
-task runAppIonicBuild {
-    final String dir = "src/main/webapp/textbase"
-    final subpath="app"
+
+//def swaggerSourceFile =
+def swaggerTargetFolder = 'src/generated/java'
+
+task generateApi {
     doLast {
-        exec {
-            workingDir "./$dir"
-            executable 'npm'
-            args 'install'
-        }
-        exec {
-            workingDir "./$dir"
-            executable 'ionic'
-            args 'build', "--prod",  "--", "--base-href=/$subpath/"
-        }
-        copy {
-            from "./$dir/www/"
-            into "$buildDir/resources/main/static/app"
-        }
-//        copy {
-//            from "./$dir/www/index.html"
-//            into "$buildDir/resources/main/static/app/"
-//            filter { line -> line.replaceAll('href="/"', 'href="/app/"') }
-//        }
+        final config = new io.swagger.codegen.config.CodegenConfigurator()
+        config.setInputSpec("file:///$projectDir/textbase-swagger-api.json")
+//        config.setInputSpec('./textbase-swagger-api.json')
+//        config.setOutputDir("$projectDir")
+        config.setOutputDir(swaggerTargetFolder)
+        config.setLang('spring')
+        config.setAdditionalProperties([
+                'interfaceOnly' : 'true',
+                'apiPackage'    : 'com.dturan.api',
+                'modelPackage'  : 'com.dturan.model',
+                'sourceFolder'  : swaggerTargetFolder
+        ])
+        println config
+        new io.swagger.codegen.DefaultGenerator().opts(config.toClientOptInput()).generate()
     }
 }
 
-task ionic  {
-    dependsOn runAdminIonicBuild, runAppIonicBuild
+
+// $ gradle generateSwaggerCode
+swaggerSources {
+    textbaseClient {
+        inputFile = file('textbase-swagger-api.json')
+        code {
+            language = 'spring'
+//            language = 'java'
+        }
+    }
 }
 
-//tasks.processResources.dependsOn << runAdminIonicBuild
-tasks.bootRun.dependsOn << ionic
-tasks.jar.dependsOn << ionic
-tasks.bootJar.dependsOn << ionic
+// load .env.xxx for dev or test execution
+final profile = getProfile()
+def getProfile() {
+    if (project.hasProperty('dev')) return 'dev' // you can call it with -Pdev
+    if (project.hasProperty('ci'))  return 'ci'
+    if (project.hasProperty('prod'))  return 'prod'
+    if (project.hasProperty('profile')) return project.property('profile')
+    'dev' // default
+}
+println "profile: ${profile}"
+final envFile = file(".env.${profile}")
+
+// ProcessForkOptions covers both bootRun (JavaExec) and test (Test)
+tasks.withType(ProcessForkOptions).configureEach { task ->
+    // Prepend this block before the task actually runs
+    task.doFirst {
+        if (envFile.exists()) {
+            println "> Loading ${envFile.name} into task '${task.name}'"
+
+            Properties props = new Properties()
+            envFile.withInputStream { props.load(it) }
+
+            println props
+
+            // the server cannot work without this, it'd better crash at the beginning
+            ["MILVUS_HOST",
+             "MILVUS_PORT",
+             "EMBEDDER_HOST",
+             "EMBEDDER_PORT",
+             "REPO_TEI_DIRS",
+             "CACHE_DIR",
+             "KAFKA_BROKERS",
+             "REPO_TEI_DIRS",
+             "CACHE_DIR",
+             "MYSQL_HOST",
+             "MYSQL_DB",
+             "MYSQL_USER",
+             "MYSQL_PASSWORD"
+            ].each {
+                if (props.getProperty(it) == null) throw new Exception("must have ${it} in .env.${profile}");
+            }
+
+            props.each { key, val ->
+                task.environment(key.toString(),
+                        val.toString()
+                                .replaceFirst('^~', System.getProperty('user.home')))
+            }
+        } else {
+            println "> Warning: ${envFile.name} not found!"
+        }
+    }
+}

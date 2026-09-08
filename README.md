@@ -1,15 +1,211 @@
+Run:
+
+$ ./gradlew bootrun -x test
+
+
 # TEXTBASE
 
 It's a place where you can retrieve bits of texts of the whole humanity.
+In very structured format: TEI.
+So you can access every piece of it using sensible urls.
+You can compose great PDFs for each book. 
 
-# Vision: Raisons d'être de Textbase
-* commodification of art. No more vinyls, no more CDs, today we have Deezer and usb sticks. The art has becaome more and more (unfortunately) a resource. Etext.store is a collectiokn of small pieces of text that you can distribute, share etc. Not so much books (although you can read a book from beginning to end) but lists of shareable urls of literary wisdom.
-* when it's ready: deezer of text (you can read and share payable texts).
+# Architecture
 
-Acestea sunt și aspectele ce fac unic Textbase. (egraphsen.com ?)
+A Spring Boot (4.1) / Gradle application, Java 25, `group = 'ro.editii'`.
 
-Deci nu este o editura de epuburi. Cărțile nu le citește nimeni.
-Dar textul, partajabil, socializabil, trebuie să aibă o valoare. Aceasta est viziunea. Commodification of text.
+- **REST/web layer** (`ro.editii.scriptorium.rest`, `.web`) — serves the addressable book/chapter/paragraph URLs, the Admin API (`/api/admin/*`, basic-auth protected), and the Relocation table (HTTP redirects for moved URLs) via `spring-data-rest` at `/api/drest/`. API is documented with springdoc-openapi at `/api/docs.html`; the generated definition is available as JSON at `/api/docs` and YAML at `/api/docs.yaml` (a JSON snapshot is also checked into the repo as `textbase-swagger-api.json`). The integration suite parses the live YAML, checks representative paths and responses, and resolves all internal references.
+- **TEI processing** (`.tei`, `.xslt`, `.toc`) — parses/imports TEI XML sources (originals authored as flat-ODT, piped odt → tei → web) using Saxon for XSLT/XML rather than Xerces; builds tables of contents and per-fragment (down to paragraph/word) addressing.
+- **Search** — three complementary search modes over the corpus, each its own `/api/search/*` endpoint, returning the same `HitDto` shape (`type` distinguishes them):
+  - **Grep** (`.search.grep.GrepSearchService`, `GET /api/search/grep`) — the shallow one: a live, unindexed, case-insensitive literal substring scan over every paragraph, re-deriving text on every call (see below). No stemming, no diacritics folding, no relevance ranking (`score` is always absent) - always reflects the current corpus, at the cost of being the slowest option and bounded to the first 50,000 paragraphs scanned per call.
+  - **Lucene** (`.search.lucene`, `GET /api/search/lucene`) — a real full-text index at paragraph granularity (same grain as the Milvus collections below), rebuilt on demand via `POST /api/admin/lucene/reindex` (not automatically - see `LuceneIndexService`) into `lucene.index.dir`. Language-aware: each `TeiFile`'s language (see below) gets its own analyzed field (`content_<lang>`/`head_<lang>`) using Lucene's built-in per-language stemmer/stopwords (`LuceneAnalyzers`) when one exists for that language, in addition to the always-present generic `content`/`head` fields (`TextbaseAnalyzer`, diacritics-folding, no stemming) that guarantee a diacritics-optional match regardless of language support.
+  - **Vector/deep** (`.vector`, `GET /api/search/milvus`, `GET /api/search/ann`) — embedding-based similarity search via Milvus, unchanged from before (see the rest of this section).
+
+  A document's language is detected once at import time from its own text (`LanguageDetectionService`, using the `lingua` library - no native/network dependency) and stored on `TeiFile.language` and every one of its `TeiDiv`/`TeiElem` rows, replacing the previous mechanism of guessing the language from the file's directory path (`TeiDirRepoImpl.getLanguageHint`, still used as a fallback if detection itself is inconclusive).
+
+  Embeddings for the vector/deep mode come from an `Embedder` (`.vector.Embedder`); the production default (`@Primary`) is `qwen3EmbeddingEmbedder` (Qwen3-Embedding-4B via Ollama at `ollama.host:ollama.port`, `zmeu.local:11434` by default), which replaced the previous sentence-transformers `all-mpnet-base-v2` embedder (`StsEmbedder`, still available under its own bean name for existing callers). A second Ollama-backed embedder, `nomicEmbedder` (nomic-embed-text), is also configured but not wired in anywhere by default. `VectorSearchAvailability` checks the embedder and the production Milvus collection once at startup (`ApplicationReadyEvent`) and disables vector search gracefully - `/api/search/milvus` and `/api/search/ann` return empty results instead of throwing - for the rest of that run if either isn't reachable; relevant because the collection is now named after the new embedder (`tb_paras_qwen3_embedding_4b`) and needs the corpus re-embedded with it before it exists.
+- **Fragments/quotations** (`.fragment`, `GET /quote/{divPath}?start=&end=`) — a Fragment is an arbitrary selection within a `TeiDiv`'s subtree, from a whole subchapter down to a single character, identified by the div's own path plus a start/end pair in "dot number notation" (`DotPath` - e.g. `2.1.15` = child 2, then child 1 of that, character 15 of its text; reuses the same 1-indexed element addressing `TeiElem.elemChild`/`_N` URL segments already use). `FragmentResolutionService` resolves both points (`DivService.childElem`, a small addition alongside the existing path-based resolution) and walks `DivService.getParagraphs()` to span one or several paragraphs, trimming the first/last to their offsets. Rendered as a standalone, embeddable "quote card" (`quote.html`/`quote.css` — big background quotation marks, minimal chrome, no site navigation) against plain text (not the decorated HTML pipeline — character offsets stay unambiguous, at the cost of not preserving inline markup in the quote).
+- **Collections** (`.collection`, `.model.DivCollection`/`DivCollectionItem`, `/api/collections/*`) — a named grouping whose items are TeiDivs and/or Fragments. Two kinds, exposed very differently:
+  - `/api/collections/mine/*` — real, persisted, per-`AppUser` collections (owner-authenticated, full CRUD). Every user gets an auto-created, non-deletable `favorites` collection at registration (`DivCollectionService.createFavoritesIfMissing`) — otherwise a normal collection, nothing special about its plumbing.
+  - `/api/collections/system/*` — public, read-only, and never persisted at all: by-language (`TeiDivRepository.findOperaByLang`), by-author (`findOperaForAuthorStrId`), and by-repo (`TeiFile.repoName`, populated at import time from `TeiRepo.getRepoNameForFile` — which named sub-repo a file was imported from, for `CombinedTeiRepo` setups).
+- **Read-only DAV export** (`.dav`, `/dav`) — projects the JPA-backed TEI hierarchy as a mountable `language/author/work` filesystem. `DavExportService` resolves virtual paths and applies language/author filters and the requested fragmentation frontier; `DavExportRenderer` serializes terminal fragments from their original TEI DOM as text, JSON, TEI XML, or standalone XHTML; `DavExportController` implements the read-only DAV protocol surface (`OPTIONS`, `PROPFIND`, `GET`, `HEAD`). No DAV files or directories are persisted, and mutation methods return HTTP 405.
+- **Accounts** (`.security`, `.model.AppUser`) — real, persisted user accounts (not the old single hardcoded admin), needed to own Collections. Two sign-in paths:
+  - Username/password: `POST /api/users/register`, then Spring Security's default session-based `formLogin` (`POST /login`) — `AppUserDetailsService` backs authentication with `AppUser` rows instead of the old `InMemoryUserDetailsManager`. The former single hardcoded admin account is migrated automatically on first boot (`AdminUserSeeder`, `ApplicationReadyEvent`) rather than lost.
+  - Google Sign-In/One Tap (primary path — see `fragments/google-one-tap.html`, included on every page via `GlobalModelAttributes`): the widget POSTs a Google ID token to `POST /api/auth/google` (`GoogleAuthController`), which is verified server-side via Google's own `tokeninfo` endpoint (`GoogleTokenInfoVerifier` — no JWT/JOSE library needed, Google handles signature/key-rotation) and find-or-creates an `AppUser` by the token's `sub` claim (`GoogleAuthService`), then establishes a normal session. Disabled until `google.oauth.client-id` (`GOOGLE_OAUTH_CLIENT_ID`) is set to a real Google Cloud OAuth client id — deliberately no guessed default (see `feedback_no_silent_config_defaults`-style reasoning: an unset id must disable the feature, not silently accept tokens meant for a different Google app). A Google-only account has no local password (`AppUser.passwordHash` null) and can't use the username/password path.
+  - A real shared Keycloak instance already exists in this ecosystem's infra (`keycloak.scriptorium.ro`) but isn't used here — evaluated and deliberately not adopted for this feature, since combining it with true Google One Tap UX (an on-page auto-prompt, not a redirect to a hosted login page) would mean bridging two separate flows for little benefit over the simpler direct approach above.
+- **Persistence** — Spring Data JPA over MySQL (`.dao`, `.model`, `.dto`), with a local Caffeine + on-disk (`cache.dir`) cache layer (`.cache`).
+- **Messaging** — Kafka (`.kafka`) for scheduled/async work (`.scheduled`).
+- **Frontend** — the public app and the admin app are now separate, standalone repos (`textbase-ionic-ui`, `textbase-admin-ui`), built and deployed independently; this repo no longer builds or serves either SPA. Server-rendered Thymeleaf templates (`teidiv.html` etc.) still serve the crawlable/lynx-browseable book pages directly from here.
+- **CLI** — `importTeiDivs` Gradle task / `TeiDivImporterCli` for bulk-importing TEI content outside the web server.
+
+# Getting a quote
+
+A Fragment's URL is `GET /quote/{divPath}?start={dotPath}&end={dotPath}` — the
+div path is the normal `/author/opus/...` path any book/chapter page already
+has, and `start`/`end` are "dot number notation" points (see `DotPath`):
+1-indexed element-child navigation steps, then a trailing character offset
+into whatever text that navigation lands on. There's no UI yet to pick a
+quote by selecting text on the page (dot-paths are meant to be produced by
+a future "select this, get a link" feature, not typed by hand) - but they're
+simple enough to construct today if you already know roughly where the text
+lives.
+
+A real, verified example - Francis Bacon's "Of Gardens" (`bacon/of_gardens`)
+opens with one of its most-quoted lines, nested two levels down from the
+opus (a title-page wrapper div containing one `div2` sub-chapter, which is
+where the essay's own paragraphs actually live):
+
+```
+GET /quote/bacon/of_gardens?start=7.4.0&end=7.4.85
+```
+
+`7` navigates to the essay's `div2` sub-chapter (the opus's 7th element
+child), `4` navigates to its 4th child (the paragraph with the essay's
+text), and `0`/`85` are the character range within that paragraph's plain
+text. Renders as a standalone "quote card":
+
+```html
+<div class="quote-card">
+    <blockquote class="quote-text">
+        <p>GOD almighty first planted a garden: and indeed it is the purest of human pleasures. </p>
+    </blockquote>
+    <div class="quote-citation">
+        <a href="/bacon/of_gardens">Francis Bacon</a>
+        <span class="quote-citation-sep">&mdash;</span>
+        <a href="/bacon/of_gardens">Of Gardens</a>
+    </div>
+</div>
+```
+
+— styled by `quote.css` with large, low-opacity `“`/`”` background glyphs
+behind the text, Alegreya serif for the quote itself, PT Sans Narrow for the
+citation line, and no site chrome (navbar/breadcrumb/TOC), so it drops
+cleanly into an `<iframe>` on another page. `FragmentResolutionServiceTest`
+and `FragmentControllerITest` cover the mechanics and corner cases in
+detail (single-character selections, ranges spanning multiple paragraphs or
+crossing a sub-chapter boundary, invalid/zero-length ranges, etc) against a
+small self-contained multi-language fixture set
+(`src/test/resources/testrepo-search`) rather than the full corpus.
+
+# Read-only DAV export
+
+The DAV endpoint exposes the corpus as a virtual filesystem rooted at `/dav`:
+
+```text
+/dav/
+  {language}/
+    {author}/
+      {work or work.ext}
+        {chapter or chapter.ext}
+          {subchapter.ext}
+```
+
+For direct HTTP requests, configure an export with query parameters:
+
+| Parameter | Required | Values | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `format` | no | `txt`, `json`, `xml`, `xhtml` | `txt` | File extension and serialization format. `xml` is the original TEI fragment; `xhtml` is a standalone XHTML document. |
+| `fragmentation` | no | `1`, `1.1`, `1.1.1` | `1` | The deepest division exposed as files: work, chapter, or subchapter. |
+| `lang` | no | a supported two-letter code such as `fr`, `ro`, or `zh` | all | Shows only works detected in that language. The language directory remains in the path. |
+| `author` | no | the canonical author id used in Textbase URLs, such as `alecsandri` | all | Shows only that author's works. The author directory remains in the path. |
+
+Examples:
+
+```bash
+# Inspect the mount root and its immediate children.
+curl -i -X PROPFIND -H 'Depth: 1' \
+  'http://localhost:8080/dav?format=txt&fragmentation=1'
+
+# A French, chapter-level TEI XML export restricted to one author.
+curl -i -X PROPFIND -H 'Depth: 1' \
+  'http://localhost:8080/dav?format=xml&fragmentation=1.1&lang=fr&author=perrault'
+
+# Fetch a file returned by PROPFIND. Keep its query string: DAV hrefs carry
+# the mount configuration forward on every child URL.
+curl 'http://localhost:8080/dav/fr/perrault/contes/peau_dane.xml?format=xml&fragmentation=1.1&lang=fr&author=perrault'
+```
+
+Do **not** use the query form as a DAV mount URL: several DAV clients discard
+the query string when following child `href` values. That silently loses the
+filters and falls back to a whole-corpus, whole-opus TXT export. Mount the
+path-configured form instead:
+
+```text
+/dav/_export/{format}/{fragmentation}/{language-or-all}/{author-or-all}/
+```
+
+For example, this is a stable, French-only, Perrault-only, chapter-level TXT
+mount URL:
+
+```text
+http://localhost:8080/dav/_export/txt/1.1/fr/perrault/
+```
+
+Use the literal `all` in either filter slot to disable that filter, for example
+`/dav/_export/xml/1.1.1/all/all/` for every language and author. The configured
+prefix is included in every returned DAV `href`, while the mounted contents
+still begin with the normal `language/author/work` hierarchy. TXT terminal
+resources always have a `.txt` extension (and likewise `.json`, `.xml`, or
+`.xhtml` for the other formats).
+
+`PROPFIND` supports DAV request depths `0` and `1`; deliberately unbounded
+`Depth: infinity` walks are rejected with `403 propfind-finite-depth` to prevent
+a single request from materializing the whole corpus.
+
+Fragmentation selects a frontier, not a requirement that every work have that
+many levels. At `fragmentation=1.1.1`, a work with subchapters becomes a tree of
+subchapter files, while a work that ends at chapter level exposes that chapter
+as a file. A work with no child divisions is itself a file at every setting.
+Each terminal file contains its complete remaining TEI subtree, so shallower
+branches do not lose text.
+
+The endpoint is strictly read-only. It advertises and implements only
+`OPTIONS`, `PROPFIND`, `GET`, and `HEAD`; `PUT`, `DELETE`, `MKCOL`, `COPY`,
+`MOVE`, `PROPPATCH`, `LOCK`, and `UNLOCK` return `405 Method Not Allowed`.
+There is no DAV write path into either the database or the source TEI repository.
+
+# Running
+
+Build/run profiles are Spring profiles (`-Dspring.profiles.active=...` or `SPRING_PROFILES_ACTIVE` env var), defined as `application-<profile>.properties` in `src/main/resources/`:
+
+- `application.properties` — base config shared by all profiles (MySQL connection via `MYSQL_HOST`/`MYSQL_DB`/`MYSQL_USER`/`MYSQL_PASSWORD` env vars, port 8080, swagger paths, etc).
+- `application-dev.properties` — local dev config (currently has one developer's hardcoded paths, e.g. `/home/petru/work/scriptorium-masters/build/`; adjust to your own machine, or add your own `application-<yourprofile>.properties` if you want a separate one alongside it).
+- `application-ci.properties` — CI config, points at the `mini.local` MySQL/Kafka/Milvus test infra.
+- `application-air.properties`, `application-int.properties`, `application-cli.properties` — other environment-specific profiles (a "dev workstation" variant, the `mini.local` integration deployment, and the CLI importer, respectively).
+
+Local dev (backend only, skipping tests for speed):
+```bash
+$ ./gradlew bootRun -x test
+```
+
+Full run with a profile and auto-import of TEI content (`autoimport` is always appended in the `bootRun` task itself):
+```bash
+$ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
+$ ./gradlew -Pdev bootRun
+$ PROFILE=ci rake run
+```
+> `-Pdev`, `-Pci`, and `-Pprod` select the corresponding Spring profile for `bootRun` and `test`.
+
+# Tests
+
+Tests use JUnit 5 (`useJUnitPlatform()`), plus Spring Boot test starters (web/kafka/restclient) and an H2 in-memory DB dependency.
+
+Local/dev, activating the `dev` Spring profile (`application-dev.properties`):
+```bash
+$ ./gradlew -Pdev test
+```
+
+CI, activating the `ci` Spring profile (`application-ci.properties`, MySQL/Kafka/Milvus on `mini.local`):
+```bash
+$ ./gradlew -Pci test
+```
+Equivalent to setting `SPRING_PROFILES_ACTIVE=dev`/`ci` before invoking Gradle (which still works too) — `-Pdev`/`-Pci` are just a shorter alias for the `test` task specifically (see `test { ... }` in `build.gradle`). With neither flag, no profile is activated and only `application.properties` (base config) applies.
+
+Docker image (built from `docker/dockerfile`, requires the jar already built via `./gradlew build`):
+```bash
+$ ./gradlew docker           # build local image editii/textbase-server:<version>
+$ ./gradlew docker-publish   # also tag + push to the mini.local:5000 registry
+```
 
 History
 ===
@@ -26,10 +222,10 @@ might be on the long run, better.
 GUI
 ---
 - initially spring web, server-based
-- for index/ and author/ now we have ionic/angular.
+- for index/ and author/ we now have a separate Ionic/Angular app (textbase-ionic-ui, its own repo).
 - site must remain crawlable and lynx-browseable
-- right now, the teidiv.html template is server based. How to combile
-the ionic under /app with the idea of having ordered URLS:
+- right now, the teidiv.html template is server based. How to combine
+the Ionic app under /app with the idea of having ordered URLS:
   - /author/work1/chapter1
 - the /author is not that important. There are more relevant databases for famous people, like wikipedia etc.
 - but /author/work/chapter is kind of the point of Textbase. That URL is the most proeminent way of querying Textbase.
@@ -75,7 +271,6 @@ in order to debug file:// html file with loading local resources.
 # TODO
 
 * address of a letter, of a paragraph, of a random range withing a book.
-* search
 =======
 # misc
 de vazut bookmate.com seamana foarte mult cu ce fac eu.
@@ -88,7 +283,6 @@ Saxon is used for XML processing, rather than the internal Xerces.
 # Changlog
 0.4 editii-util is now part of textbase.
 last stable 537c3a3f5cd2229d790b0b832b5fea130e7a0d16
-
 
 Apache/Angular fix
 The problem of having an angular app (which manages with the Router its own 
@@ -110,7 +304,7 @@ But as it didnt work for us, we used a SpringBoot solution which works well.
 
 ## Ionic/Angular UI
 
-* deployed at /app/*
+* its own repo now (textbase-ionic-ui), built/deployed independently, still served at /app/*
 * replaces and modernizes /index.html /author.html
 * the site must remaing crawlable by search engines and Links
 
@@ -129,7 +323,7 @@ https://textbase.scriptorium.ro/api/drest/relocations/ -d '{ "oldPath" : "$O", "
 
 
 ## Admin interface
-* at /admin, protected by basic auth, interacts with /api/admin/*
+* its own repo now (textbase-admin-ui), built/deployed independently, still served at /admin, protected by basic auth, interacts with /api/admin/*
 
 # PRESENTATION
 
@@ -141,3 +335,10 @@ https://textbase.scriptorium.ro/api/drest/relocations/ -d '{ "oldPath" : "$O", "
 # but pretty too
   - https://textbase.scriptorium.ro/mitru/povesti_despre_pacala_si_tandala/tilharul_boierit
   https://textbase.scriptorium.ro/perrault/contes/peau_dane
+
+
+# urls
+
+- urls mostly use div's heads.
+- but, you can pass a number - which is the n'th (index) of the non-div para or whatever
+- or an xpath fragment

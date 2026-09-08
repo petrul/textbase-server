@@ -8,7 +8,7 @@
     <link th:if=${prev} rel="prev" th:href="@{|/${prev.completePath}|}" href="prev_url" />
     <link th:if=${next} rel="next" th:href="@{|/${next.completePath}|}" href="next_url" />
 
-    <script th:replace="fragments/google-analytics" ></script>
+    <script th:replace="~{fragments/google-analytics}" ></script>
 
     <link rel="stylesheet" 
         href="../static/bootstrap-4.3.1-dist/css/bootstrap.min.css"

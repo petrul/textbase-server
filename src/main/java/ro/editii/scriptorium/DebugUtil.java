@@ -2,9 +2,10 @@ package ro.editii.scriptorium;
 
 import lombok.extern.java.Log;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.web.util.ForwardedHeaderUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -13,7 +14,7 @@ import java.util.Enumeration;
 public class DebugUtil {
 
     public static String logHttpRequestHeaders(HttpServletRequest request, UriComponentsBuilder uriComponentsBuilder) {
-        StringBuilder buffer = new StringBuilder();
+        final StringBuilder buffer = new StringBuilder();
         buffer.append("\n******************");
         buffer.append(request.toString());
         buffer.append("******************");
@@ -43,7 +44,9 @@ public class DebugUtil {
                 .build()
                 .toUriString());
 
-        UriComponentsBuilder ucb2 = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));
+        final ServletServerHttpRequest sshr = new ServletServerHttpRequest(request);
+//        final UriComponentsBuilder ucb2 = UriComponentsBuilder.fromHttpRequest(sshr);
+        final UriComponentsBuilder ucb2 = ForwardedHeaderUtils.adaptFromForwardedHeaders(sshr.getURI(), sshr.getHeaders());
         buffer.append("\n >  from param ucb2() :" + ucb2
                 .path("/pulea/calului")
                 .build()

@@ -1,42 +1,38 @@
-package ro.editii.scriptorium.rest;
+package ro.editii.scriptorium.rest
 
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration
+import org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.boot.resttestclient.TestRestTemplate
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.test.context.transaction.AfterTransaction
-import org.springframework.test.context.transaction.BeforeTransaction
-import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.client.RestTemplate
+import org.springframework.test.context.TestPropertySource
 import ro.editii.scriptorium.TestConfig
-import ro.editii.scriptorium.dao.AuthorRepository
-import ro.editii.scriptorium.dao.TeiDivRepository
+import ro.editii.scriptorium.TestUtils
 import ro.editii.scriptorium.dto.AuthorDto
 import ro.editii.scriptorium.service.AdminService
-import ro.editii.scriptorium.service.TeiFileDbService
-import ro.editii.scriptorium.tei.TeiRepo
-import ro.editii.scriptorium.web.DivController
 
-import javax.persistence.EntityManager;
-
-import static org.junit.jupiter.api.Assertions.*;
-
+@TestPropertySource(properties = [
+        "spring.datasource.url=jdbc:h2:mem:myDb;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.hibernate.ddl-auto=create",
+        "spring.main.allow-bean-definition-overriding=true"])
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = [ TestConfig.class ])
+@AutoConfigureTestRestTemplate
+@EnableAutoConfiguration(exclude = KafkaAutoConfiguration.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RepoRestControllerITest {
 
-    @LocalServerPort
-    private int port
+    @LocalServerPort private int port
 
-    @Autowired DivController divController
     @Autowired private TestRestTemplate restTemplate
-    @Autowired private RestTemplate restTemplateNoRedirect
-    @Autowired AuthorRepository authorRepository
-    @Autowired TeiDivRepository teiDivRepository
-    @Autowired TeiRepo teiRepo
-    @Autowired TeiFileDbService teiRepoService
     @Autowired AdminService adminService
 
     @Autowired
@@ -46,25 +42,23 @@ class RepoRestControllerITest {
         return this.jdbcTemplate.queryForObject("select count(*) from " + tableName, Integer.class)
     }
 
-    @Autowired
-    EntityManager entityManager
 
 
     void truncateAllTables() {
         this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 0")
         this.jdbcTemplate.update("truncate table tei_file_authors")
         this.jdbcTemplate.update("truncate table author");
-        this.jdbcTemplate.update("truncate table tei_div");
+        this.jdbcTemplate.update("truncate table " + TestUtils.TEI_ELEM);
         this.jdbcTemplate.update("truncate table tei_file");
         this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 1")
 
         assert countTableRows("author") == 0
         assert countTableRows("tei_file_authors") == 0
-        assert countTableRows("tei_div") == 0
+        assert countTableRows(TestUtils.TEI_ELEM) == 0
     }
 
 
-    @BeforeTransaction
+    @BeforeAll
     void beforeAll() {
         this.truncateAllTables()
 
@@ -72,19 +66,20 @@ class RepoRestControllerITest {
 
         assert countTableRows("author") > 0
         assert countTableRows("tei_file_authors") > 0
-        assert countTableRows("tei_div") > 0
+        assert countTableRows(TestUtils.TEI_ELEM) > 0
 
     }
 
-    @AfterTransaction
+    @AfterAll
     void afterTransaction() {
         this.truncateAllTables();
     }
 
-    @Test @Transactional
+    @Test
     void getAuthors() {
-        def url = "http://localhost:" + port + "/api/authors/"
-        List<AuthorDto> authors = this.restTemplate.getForEntity(url, List<AuthorDto>.class).body
+
+        final url = "http://localhost:" + port + "/api/authors/"
+        final List<AuthorDto> authors = this.restTemplate.getForEntity(url, List<AuthorDto>.class).body
         assert  authors != null
         assert authors.size() > 0
         p authors
@@ -95,7 +90,7 @@ class RepoRestControllerITest {
         }
     }
 
-    @Test @Transactional
+    @Test
     void getAuthor() {
         final alecsandri = 'alecsandri'
         def url = "http://localhost:" + port + "/api/authors/$alecsandri"
@@ -106,8 +101,8 @@ class RepoRestControllerITest {
         assert author.opera != null
         assert author.opera.size() > 0
 
-        p author.opera
-        p author.opera.size()
+//        p author.opera
+        assert author.opera.length > 0
         author.opera.each {
             assert it.head != null ;
             assert it.head.size() > 0
@@ -118,7 +113,7 @@ class RepoRestControllerITest {
         }
 
         final operaHeads = author.opera.collect{ it.head}
-        p operaHeads
+        assert ! operaHeads.empty
     }
 
     def p(args) {

@@ -1,65 +1,69 @@
 package ro.editii.scriptorium.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import ro.editii.scriptorium.Globals;
+import ro.editii.scriptorium.Util;
 import ro.editii.scriptorium.dao.TeiFileRepository;
 import ro.editii.scriptorium.model.TeiFile;
+import ro.editii.scriptorium.search.lucene.LuceneIndexService;
 import ro.editii.scriptorium.tei.TeiFileAlreadyImportedException;
 import ro.editii.scriptorium.tei.TeiRepo;
 
-import javax.sql.DataSource;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.Optional;
 
-@Service
+@Service @Log4j2
+@RequiredArgsConstructor
 public class AdminService {
 
-    @Autowired
-    TeiRepo teiRepo;
+    final TeiRepo teiRepo;
+    final TeiFileRepository teiFileRepository;
+    final TeiFileDbService teiFileDbService;
+    final JdbcTemplate jdbcTemplate;
+    final LuceneIndexService luceneIndexService;
 
-    @Autowired
-    TeiFileRepository teiFileRepository;
-
-    @Autowired
-    TeiFileDbService teiFileDbService;
-
-    @Autowired
-    JdbcTemplate jdbcTemplate;
+    /**
+     * Full rebuild - see LuceneIndexService for why this isn't incremental.
+     * Synchronous, same as reimportAllTeis/reimportFresherTeis: whoever
+     * calls the admin endpoint waits for it, rather than this service
+     * inventing its own async job-tracking machinery for one caller.
+     */
+    public int reindexLucene() {
+        return this.luceneIndexService.rebuildIndex();
+    }
 
     public void reimportFresherTeis(Writer logActivity) {
         synchronized (Globals.IMPORT_TEIS_WORKING) {
-            List<String> filenames = teiRepo.list();
+            final List<String> filenames = teiRepo.list();
 
             for (String filename : filenames) {
-                File file = teiRepo.getFile(filename);
-                Optional<TeiFile> optionalTeiFile = this.teiFileRepository.getByFilename(filename);
+                final File file = teiRepo.getFile(filename);
+                final Optional<TeiFile> optionalTeiFile = this.teiFileRepository.getByFilename(filename);
                 if (optionalTeiFile.isPresent()
                         && optionalTeiFile.get().getTimestamp().getTime() > file.lastModified()) {
                     // do nothing if already imported and file is not fresher than import
                     continue;
                 } else {
                     if (optionalTeiFile.isPresent()) {
-                        LOG.info("will delete existing import for {} ", filename);
+                        log.info("will delete existing import for {} ", filename);
                         writeLn(logActivity, "will delete existing import for " + filename);
-                        TeiFile teiFile = optionalTeiFile.get();
                         this.teiFileDbService.deleteTeiFile(filename);
                     }
 
                     try {
-                        LOG.info("will import {} ", filename);
+                        log.info("will import {} ", filename);
                         writeLn(logActivity, "will delete existing import for " + filename);
                         this.teiFileDbService.importTeiFile(filename, true);
                     } catch (TeiFileAlreadyImportedException e) {
-                        LOG.error(e.getMessage(), e);
+                        log.error(e.getMessage(), e);
                     } catch (RuntimeException e) {
-                        LOG.error("caught runtime exception logging but will continue with other files", e);
+                        log.error("caught runtime exception logging but will continue with other files", e);
                     }
                 }
             }
@@ -73,17 +77,17 @@ public class AdminService {
             Optional<TeiFile> optionalTeiFile = this.teiFileRepository.getByFilename(filename);
 
             if (optionalTeiFile.isPresent()) {
-                LOG.info("will delete existing import for {} ", filename);
+                log.info("will delete existing import for {} ", filename);
                 writeLn(logActivity, "will delete existing import for " + filename);
                 this.teiFileDbService.deleteTeiFile(filename);
             }
 
             try {
-                LOG.info("will import {} ", filename);
+                log.info("will import {} ", filename);
                 writeLn(logActivity, "will import " + filename);
                 this.teiFileDbService.importTeiFile(filename, true);
             } catch (TeiFileAlreadyImportedException e) {
-                LOG.error(e.getMessage(), e);
+                log.error(e.getMessage(), e);
             }
         }
     }
@@ -102,18 +106,18 @@ public class AdminService {
                     continue;
                 } else {
                     if (optionalTeiFile.isPresent()) {
-                        LOG.info("will delete existing import for {} ", filename);
+                        log.info("will delete existing import for {} ", filename);
                         writeLn(logActivity, "will delete existing import for " + filename);
                         TeiFile teiFile = optionalTeiFile.get();
                         this.teiFileDbService.deleteTeiFile(filename);
                     }
 
                     try {
-                        LOG.info("will import {} ", filename);
+                        log.info("will import {} ", filename);
                         writeLn(logActivity, "will delete existing import for " + filename);
                         this.teiFileDbService.importTeiFile(filename, true);
                     } catch (TeiFileAlreadyImportedException e) {
-                        LOG.error(e.getMessage(), e);
+                        log.error(e.getMessage(), e);
                     }
                 }
             }
@@ -127,7 +131,7 @@ public class AdminService {
             this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 0");
             this.jdbcTemplate.update("truncate table tei_file_authors");
             this.jdbcTemplate.update("truncate table author");
-            this.jdbcTemplate.update("truncate table tei_div");
+            this.jdbcTemplate.update("truncate table " + Util.TEI_ELEM);
             this.jdbcTemplate.update("truncate table tei_file");
             this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 1");
 
@@ -151,5 +155,4 @@ public class AdminService {
         }
     }
     
-    final private static Logger LOG = LoggerFactory.getLogger(AdminService.class);
 }

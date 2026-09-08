@@ -28,12 +28,6 @@
                 <xsl:attribute name="class" select="@rend" />
             </xsl:if>
             <xsl:apply-templates select="node()|@*"/>
-
-            <p class="deco-end"><img class="deco-end">
-                <xsl:attribute name="src">
-                    <xsl:text>..</xsl:text><xsl:value-of select="$relativeRoot"/><xsl:text>/img/deco/deco-ending-style.svg</xsl:text>
-                </xsl:attribute>
-            </img></p>
         </xsl:element>
     </xsl:template>
 
@@ -47,7 +41,6 @@
             <xsl:apply-templates select="node()|@*"/>
         </xsl:element>
     </xsl:template>
-
 
     <xsl:template match="tei:head//tei:label">
         <span class="head-label"><xsl:apply-templates /></span>
@@ -79,6 +72,15 @@
                 </xsl:if>
                 <xsl:if test="../@type='div5'">
                     <h5><xsl:apply-templates/></h5>
+                </xsl:if>
+                <xsl:if test="../@type='div6'">
+                    <h6><xsl:apply-templates/></h6>
+                </xsl:if>
+                <xsl:if test="../@type='div7'">
+                    <h7><xsl:apply-templates/></h7>
+                </xsl:if>
+                <xsl:if test="../@type='div8'">
+                    <h8><xsl:apply-templates/></h8>
                 </xsl:if>
             </xsl:when>
 

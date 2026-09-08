@@ -39,6 +39,28 @@ class CandidateUrlFragmGeneratorForTeiDivHeadTest {
     }
 
     @Test
+    void test_numeric_head_collision_gets_suffixed_not_incremented() {
+        // A second sibling headed "35" must become "35_2", not an unrelated
+        // "36" - incrementing the number instead of suffixing it silently
+        // mislabels the div as if it were headed something it isn't.
+        def candidates = iterable2list(new CandidateUrlFragmGeneratorForTeiDivHead("35"), 3)
+        assert candidates == ["35", "35_2", "35_3"]
+    }
+
+    @Test
+    void test_long_head_truncation_leaves_room_for_suffix() {
+        // A heading long enough that its word-grown candidate already sits
+        // at (or near) MAX_URL_FRAGM_SIZE must still be able to produce a
+        // genuinely different candidate on retry, instead of the appended
+        // "_<n>" suffix being truncated straight back off and returning the
+        // exact same (already-rejected) fragment forever.
+        final head = ("cuvant " * 30).trim() // 30 distinct-looking words, well over 100 chars once joined
+        final candidates = iterable2list(new CandidateUrlFragmGeneratorForTeiDivHead(head), 5)
+        assert candidates.every { it.length() <= 100 }
+        assert candidates.size() == candidates.toSet().size() // no duplicates/no stuck-forever repeats
+    }
+
+    @Test
     void test_1dot() {
         final onedot = '1.'
         final oneromandot = 'I.'
@@ -85,7 +107,7 @@ class CandidateUrlFragmGeneratorForTeiDivHeadTest {
         final gen = new CandidateUrlFragmGeneratorForTeiDivHead(head)
         final candidates = iterable2list(gen)
         p candidates
-        assert candidates[0..3] == ['a_laventure', 'a_laventure_2', 'a_laventure_3', 'a_laventure_4'];
+        assert candidates[0..3] == ['a_l_aventure', 'a_l_aventure_2', 'a_l_aventure_3', 'a_l_aventure_4'];
     }
 
     @Test

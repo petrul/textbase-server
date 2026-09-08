@@ -1,0 +1,114 @@
+require 'rake'
+require 'fileutils'
+require 'shellwords'
+require 'tmpdir'
+
+GRADLE = "./gradlew"
+
+profile = ENV['PROFILE'] || (Rake.application.top_level_tasks.include?('ci') ? 'ci' : 'dev')
+puts "profile: #{profile}"
+
+IMAGE_NAME    = "editii/textbase-server"
+
+version = File.read("build.gradle")[/^\s*version\s*=\s*['"]([^'"]+)['"]/, 1]
+
+GV0 = '/media/gv0'
+REPO = "#{GV0}/repo"
+puts "Profile: #{profile}, version: #{version}"
+
+# The admin and textbase Ionic/Angular frontends used to be built here
+# (npm install && ionic build) and packaged into this app's static
+# resources/executable JAR. Both are now their own standalone sibling repos
+# (textbase-admin-ui, textbase-ionic-ui), built and deployed independently -
+# nothing in this repo's build touches node/npm/ionic anymore.
+
+task :default => [:clean, :build, :publish, "docker:publish"]
+
+desc "Run the complete CI pipeline: clean, test, build, build the Docker image, and publish it"
+task :ci => [:clean] do
+  Rake::Task[:test].invoke('ci')
+  Rake::Task[:build].invoke('ci')
+  Rake::Task['docker:publish'].invoke
+end
+
+task :test, [:task_profile] do |_task, args|
+    task_profile = args[:task_profile] || profile
+    puts "Running tests..."
+    sh "#{GRADLE} -P#{task_profile} test"
+end
+
+task :run do
+    puts "Running application..."
+    sh "#{GRADLE} -P#{profile} bootRun"
+end
+
+task :build, [:task_profile] do |_task, args|
+    task_profile = args[:task_profile] || profile
+    puts "Building application..."
+    # Tests have their own Rake stage. Excluding Gradle's test task keeps
+    # `rake ci` from running the same suite once here and once in `test[ci]`.
+    sh "#{GRADLE} -P#{task_profile} build -x test"
+end
+
+task :clean do
+    puts "Cleaning build artifacts..."
+    sh "#{GRADLE} -P#{profile} clean"
+end
+
+desc "publish library"
+task publish: :check_mount do
+  sh "#{GRADLE} publish -P#{profile} -PrepoDir=#{REPO}"
+end
+
+desc "Verify Gluster mount before publishing"
+task :check_mount do
+  require 'shellwords'
+  puts "Checking GlusterFS mount at #{GV0}..."
+  assert_gluster_mounted!(GV0)
+  puts "Mount verified successfully."
+end
+
+
+
+def assert_gluster_mounted!(path)
+  is_mounted = system("mountpoint -q #{path.shellescape}") rescue false
+
+  unless is_mounted
+    is_mounted = File.read('/proc/mounts').lines.any? do |line|
+      line.split[1] == File.expand_path(path)
+    end rescue false
+  end
+
+  unless is_mounted
+    raise "GlusterFS error: Target directory '#{path}' is not a valid mount point!"
+  end
+end
+
+namespace :docker do
+
+
+    TAG           = "#{version}" # Replace with your desired tag
+    LOCAL_REGISTRY = "mini.local:5000" # Replace with your local registry address (e.g., 192.168.1.50:5000)
+
+    LOCAL_TAG = "#{IMAGE_NAME}:#{TAG}"
+    TARGET_TAG = "#{LOCAL_REGISTRY}/#{IMAGE_NAME}:#{TAG}"
+
+
+    desc "Build, tag, and publish image to local registry"
+    task :build do
+        puts "==> Building Docker image..."
+        sh "docker build -f docker/dockerfile --build-arg APP_VERSION=#{version} -t #{LOCAL_TAG} ."
+
+        puts "==> Tagging image for local registry..."
+        sh "docker tag #{LOCAL_TAG} #{TARGET_TAG}"
+
+    end
+
+    desc "Build, tag, and publish image to local registry"
+    task :publish => [:build] do
+        puts "==> Pushing image to #{LOCAL_REGISTRY}..."
+        sh "docker push #{TARGET_TAG}"
+
+        puts "==> Successfully published #{TARGET_TAG}!"
+    end
+end

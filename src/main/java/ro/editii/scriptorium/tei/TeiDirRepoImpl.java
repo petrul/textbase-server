@@ -1,26 +1,24 @@
 package ro.editii.scriptorium.tei;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.log4j.Log4j2;
 import ro.editii.scriptorium.Util;
+import ro.editii.scriptorium.model.Languages;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
-public class TeiDirRepoImpl implements TeiRepo {
+@Log4j2
+public class TeiDirRepoImpl implements TeiRepo, Serializable {
 
     String teiDir;
 
     Properties properties;
-
 
 
     public String getName() {
@@ -34,7 +32,7 @@ public class TeiDirRepoImpl implements TeiRepo {
         else
             this.properties = properties;
 
-        LOG.info("TEI Repo @ [" + this.teiDir +"]" );
+        log.info("TEI Repo @ [" + this.teiDir +"]" );
     }
 
     public TeiDirRepoImpl(String teiDir, Map<String, String> properties) {
@@ -65,15 +63,38 @@ public class TeiDirRepoImpl implements TeiRepo {
         return new File(this.getTeiDir(), resName);
     }
 
+    /**
+     * @return if any fragment of the complete path corresponding to resName
+     * is one of the codes for languages: 'en', 'fr', 'es' etc.,
+     * then report the corresponding language, else null.
+     */
+
+    public Languages getLanguageHint(String resName) {
+        final List<String> langList = Arrays.stream(Languages.values())
+                .map(it -> it.name())
+                .map(String::toLowerCase)
+                .toList();
+        final var completePath = this.getFile(resName);
+        final String parent = completePath.getParent();
+        final String[] fragments = parent.split("\\/");
+        final Optional<String> anyLangHint = Arrays.stream(fragments)
+                .filter(fragm ->
+                        langList.stream().anyMatch(lang -> lang.equals(fragm)))
+                .findFirst();
+        if (anyLangHint.isEmpty())
+            return null;
+        return Languages.from(anyLangHint.get());
+    }
+
     public boolean has(String resName) {
         File file = this.getFile(resName);
         return file.exists();
     }
 
     public InputStream getStreamForName(String resName) {
-        File file = this.getFile(resName);
+        final File file = this.getFile(resName);
 
-        BufferedInputStream is;
+        final BufferedInputStream is;
         try {
             is = new BufferedInputStream(new FileInputStream(file));
         } catch (FileNotFoundException e) {
@@ -100,7 +121,6 @@ public class TeiDirRepoImpl implements TeiRepo {
             List<String> collect = Files.walk(finalTeiDirPath)
                     .filter(Files::isRegularFile)
                     .map(it -> it.toString())
-//                    .filter(it -> !it.contains("orig/"))
                     .filter(it -> it.toLowerCase().endsWith(".xml"))
                     .map(it -> it.substring(finalTeiDirPath.toString().length()))
                     .collect(Collectors.toList());
@@ -116,7 +136,7 @@ public class TeiDirRepoImpl implements TeiRepo {
             }
 
             if (collect.size() < 1) {
-                LOG.warn("teirepo " + this.getName() + " is empty");
+                log.warn("teirepo " + this.getName() + " is empty");
             }
 
             return collect;
@@ -135,7 +155,6 @@ public class TeiDirRepoImpl implements TeiRepo {
         return Util.replaceTilde(this.teiDir);
     }
 
-    static Logger LOG = LoggerFactory.getLogger(TeiDirRepoImpl.class);
 }
 
 

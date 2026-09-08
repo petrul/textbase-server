@@ -22,11 +22,11 @@ class TeiDocumentTest {
         def nodeList = xt.applyXpathForNodeSet('//tei:binaryObject')
         println nodeList.length
         assert nodeList.length == 1
-        nodeList = xt.applyXpathForNodeSet("//tei:binaryObject[@xml:id='d3e5875']")
+        nodeList = xt.applyXpathForNodeSet("//tei:binaryObject[@xml:id='d3e1954']")
         p nodeList.length
         assert nodeList.length == 1
 
-        def str = xt.xpath("//tei:binaryObject[@xml:id='d3e5875']").trim()
+        def str = xt.xpath("//tei:binaryObject[@xml:id='d3e1954']").trim()
 
         p str.length()
 
@@ -59,7 +59,7 @@ class TeiDocumentTest {
             assert e.message =~ /cannot find binary object by id/
         }
 
-        final bytes = tei.getBinaryObject('d3e5875');
+        final bytes = tei.getBinaryObject('d3e1954');
 
         assert bytes != null
         assert bytes.length > 0
@@ -136,6 +136,23 @@ class TeiDocumentTest {
         """)
         assert xt.applyXpathForNodeSet(".//text()").length == 1
         assert xt.applyXpathForNodeSet(".//text()").item(0).textContent.contains('Manifeste și amintiri politice')
+    }
+
+
+    /**
+     * in java equal string literals are strictly identical;
+     * but strings that may come from various sources such as operations
+     * are not identical even though they may be value-equal (which makes sense).
+     */
+    @Test
+    void testString() {
+        final String s1 = 'lalala';
+        final String s2 = 'lalala';
+        final String s3 = 'lala' + 'la'
+        assert s1 === s2
+        assert s1 == s2
+        assert s1 !== s3 // not strict identity
+        assert s1 == s3 // value equality
     }
 
 }

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>textbase nomic embed explorer</title>
+<style>
+  :root {
+    --ink: #232022;
+    --muted: #7a7178;
+    --line: #e7e0e3;
+    --surface: #ffffff;
+    --bg: #faf7f5;
+    --accent: #7c2338;
+    --accent-soft: #f6e6ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 28px;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type="text"], input[type="number"] {
+    font: inherit;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--ink);
+  }
+  #url { flex: 1 1 100%; }
+  #lang { width: 110px; }
+  #topk { width: 80px; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { background: #611b2b; }
+  button.ghost { background: var(--accent-soft); color: var(--accent); }
+  button.ghost:hover { background: #efd3da; }
+  button:disabled { opacity: .55; cursor: wait; }
+  label.field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .mode-toggle { display: flex; gap: 16px; }
+  .mode-toggle label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; text-transform: none; color: var(--ink); letter-spacing: 0; cursor: pointer; }
+  .mode-toggle input { accent-color: var(--accent); }
+  .mode-note { display: none; font-size: 11px; color: var(--muted); font-style: italic; align-self: flex-end; padding-bottom: 8px; }
+  .mode-note.show { display: block; }
+  .mode-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 2px 7px;
+    margin-left: 8px;
+  }
+
+  #status { font-size: 13px; color: var(--muted); min-height: 18px; margin-bottom: 14px; }
+  #status.err { color: #a3213a; }
+
+  .query-card {
+    background: var(--accent-soft);
+    border: 1px solid #ecc6d0;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 22px;
+    display: none;
+  }
+  .query-card .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .query-card a { color: var(--accent); word-break: break-all; font-size: 13px; }
+  .query-card p { margin: 8px 0 0; font-size: 14px; line-height: 1.5; }
+
+  #results { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .card header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .rank { font-weight: 700; color: var(--accent); font-size: 13px; width: 26px; flex: 0 0 auto; }
+  .who { font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 0; }
+  .lang-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 2px 6px;
+    flex: 0 0 auto;
+  }
+  .score-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: #f0e7ea;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .score-bar > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+  .score-label { font-size: 11px; color: var(--muted); }
+  .or-sep { font-size: 11px; color: var(--muted); text-align: center; margin: 2px 0; }
+  .card a.url { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .card p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: #3a3438; }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>textbase nomic embed explorer</h1>
+  <p class="sub">query test_experiment_embeddings (nomic-embed-text:v1.5, int Milvus) with a textbase URL or a random subchapter</p>
+
+  <form id="searchForm">
+    <input id="url" type="text" placeholder="https://textbase.scriptorium.ro/yeats/the_green/a_drinking_song  (leave empty for random)" />
+    <div class="or-sep">or type any free-text query (doesn't need to be from textbase at all - this is the point of asymmetric mode)</div>
+    <input id="text" type="text" placeholder="e.g. What does the Bible say about wine and love?" />
+    <div class="row">
+      <label class="field">Embedder
+        <span class="mode-toggle">
+          <label><input type="radio" name="embedder" value="nomic" checked /> nomic-embed-text (768-dim)</label>
+          <label><input type="radio" name="embedder" value="bge-m3" /> bge-m3 (1024-dim)</label>
+          <label><input type="radio" name="embedder" value="qwen" /> qwen3-embedding:4b (2560-dim)</label>
+        </span>
+      </label>
+    </div>
+    <div class="row">
+      <label class="field">Mode
+        <span class="mode-toggle">
+          <label><input type="radio" name="mode" value="symmetric" checked /> Symmetric (doc↔doc)</label>
+          <label><input type="radio" name="mode" value="asymmetric" /> Asymmetric (query→passage IR)</label>
+        </span>
+      </label>
+      <div class="mode-note" id="bgeNote">bge-m3 needs no query/document prefix - symmetric and asymmetric use the identical embeddings and collection for it.</div>
+      <div class="mode-note" id="qwenNote">qwen3-embedding only prefixes the query side in asymmetric mode (documents are never prefixed) - symmetric and asymmetric share the same collection. Larger model - may be slow/unavailable if not yet indexed.</div>
+    </div>
+    <div class="row">
+      <label class="field">Language filter (random only)
+        <input id="lang" type="text" placeholder="e.g. en" />
+      </label>
+      <label class="field">Results
+        <input id="topk" type="number" min="1" max="50" value="20" />
+      </label>
+      <div style="display:flex; align-items:flex-end; gap:10px;">
+        <button type="submit" class="primary">Search</button>
+        <button type="button" id="randomBtn" class="ghost">🎲 Random</button>
+      </div>
+    </div>
+  </form>
+
+  <div id="status"></div>
+
+  <div class="query-card" id="queryCard">
+    <div class="eyebrow">Query subchapter</div>
+    <a id="queryUrl" href="#" target="_blank" rel="noreferrer"></a>
+    <p id="queryPreview"></p>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<script>
+const form = document.getElementById('searchForm');
+const urlInput = document.getElementById('url');
+const textInput = document.getElementById('text');
+const langInput = document.getElementById('lang');
+const topkInput = document.getElementById('topk');
+const randomBtn = document.getElementById('randomBtn');
+const statusEl = document.getElementById('status');
+const queryCard = document.getElementById('queryCard');
+const queryUrl = document.getElementById('queryUrl');
+const queryPreview = document.getElementById('queryPreview');
+const resultsEl = document.getElementById('results');
+
+function setBusy(busy, message) {
+  [...form.querySelectorAll('button'), randomBtn].forEach(b => b.disabled = busy);
+  statusEl.className = '';
+  statusEl.textContent = message || '';
+}
+
+function selectedMode() {
+  return document.querySelector('input[name="mode"]:checked').value;
+}
+function selectedEmbedder() {
+  return document.querySelector('input[name="embedder"]:checked').value;
+}
+
+document.querySelectorAll('input[name="embedder"]').forEach(el => el.addEventListener('change', updateEmbedderNote));
+function updateEmbedderNote() {
+  const embedder = selectedEmbedder();
+  document.getElementById('bgeNote').classList.toggle('show', embedder === 'bge-m3');
+  document.getElementById('qwenNote').classList.toggle('show', embedder === 'qwen');
+}
+updateEmbedderNote();
+
+async function runSearch(useUrl) {
+  const params = new URLSearchParams();
+  const text = textInput.value.trim();
+  if (text) {
+    params.set('text', text);
+  } else if (useUrl) {
+    const u = urlInput.value.trim();
+    if (u) params.set('url', u);
+  }
+  const lang = langInput.value.trim();
+  if (lang && !text && !(useUrl && urlInput.value.trim())) params.set('lang', lang);
+  params.set('top_k', topkInput.value || 20);
+  const mode = selectedMode();
+  const embedder = selectedEmbedder();
+  params.set('mode', mode);
+  params.set('embedder', embedder);
+
+  setBusy(true, 'searching…');
+  queryCard.style.display = 'none';
+  resultsEl.innerHTML = '';
+
+  try {
+    const resp = await fetch('/api/search?' + params.toString());
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+
+    if (data.query.url) {
+      urlInput.value = data.query.url;
+      queryUrl.href = data.query.url;
+      queryUrl.textContent = data.query.url;
+      queryUrl.style.display = '';
+    } else {
+      queryUrl.textContent = '(free text, not from textbase)';
+      queryUrl.removeAttribute('href');
+      queryUrl.style.display = '';
+    }
+    queryPreview.textContent = data.query.preview;
+    queryCard.querySelector('.eyebrow').innerHTML =
+      'Query <span class="mode-badge">' + embedder + '</span><span class="mode-badge">' + mode + '</span>';
+    queryCard.style.display = 'block';
+
+    if (!data.neighbors.length) {
+      resultsEl.innerHTML = '<p class="empty">No neighbours found.</p>';
+    } else {
+      resultsEl.innerHTML = data.neighbors.map((n, i) => `
+        <div class="card">
+          <header>
+            <span class="rank">#${i + 1}</span>
+            <span class="who">${escapeHtml(n.author)} — ${escapeHtml(n.opus)}${n.head ? ' · ' + escapeHtml(n.head) : ''}</span>
+            <span class="lang-badge">${escapeHtml(n.language || '?')}</span>
+          </header>
+          <div class="score-bar"><i style="width:${Math.max(0, Math.min(100, n.score * 100))}%"></i></div>
+          <div class="score-label">similarity ${n.score.toFixed(4)} · ${n.word_count} words</div>
+          <a class="url" href="${n.url}" target="_blank" rel="noreferrer">${escapeHtml(n.url)}</a>
+          <p>${escapeHtml(n.preview)}</p>
+        </div>
+      `).join('');
+    }
+    setBusy(false, `${data.neighbors.length} results`);
+  } catch (err) {
+    setBusy(false, err.message);
+    statusEl.className = 'err';
+  }
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+form.addEventListener('submit', e => { e.preventDefault(); runSearch(true); });
+randomBtn.addEventListener('click', () => { urlInput.value = ''; textInput.value = ''; runSearch(false); });
+</script>
+</body>
+</html>

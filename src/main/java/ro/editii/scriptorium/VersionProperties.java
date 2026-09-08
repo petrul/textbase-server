@@ -1,6 +1,7 @@
 package ro.editii.scriptorium;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -9,17 +10,13 @@ import org.springframework.core.env.Environment;
 
 @Configuration
 @PropertySource("classpath:/version.properties")
-@Getter
+@Getter @RequiredArgsConstructor
 public class VersionProperties  {
 
     public static final String APP_VERSION = "app.version";
-//    public static final String BUILD_NUMBER = "build.number";
-//    public static final String BUILDDATE = "builddate";
-//    public static final String GIT_LATEST_COMMIT = "git_latest_commit";
     public static final String BUILD_MACHINE = "build_machine";
 
-    @Autowired
-    public Environment environment;
+    final Environment environment;
 
     @Value("${app.version:}")
     String appVersion;
@@ -41,7 +38,7 @@ public class VersionProperties  {
 
     public String getVersion() {
         try {
-            return this.environment.getProperty(APP_VERSION);
+            return this.getEnvironmentProperty(APP_VERSION);
         } catch (IllegalArgumentException e) {
             return "undefined";
         }

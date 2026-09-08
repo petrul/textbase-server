@@ -5,13 +5,19 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.context.TestPropertySource
 import ro.editii.scriptorium.TestConfig
 import ro.editii.scriptorium.Util
 import ro.editii.scriptorium.dao.TeiFileRepository
 import ro.editii.scriptorium.model.TeiFile
 
+@TestPropertySource(properties = [
+        "spring.datasource.url=jdbc:h2:mem:myDb;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.hibernate.ddl-auto=create",
+        "spring.main.allow-bean-definition-overriding=true"])
 @SpringBootTest
 @ContextConfiguration(classes = TestConfig.class)
 @Log
@@ -33,7 +39,7 @@ class TeiRepoTest {
         println teiRepo.list()
     }
 
-    @MockBean
+    @MockitoBean
     private TeiFileRepository teiFileRepository
 
     @Test

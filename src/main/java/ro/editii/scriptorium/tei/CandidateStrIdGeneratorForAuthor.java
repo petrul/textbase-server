@@ -1,6 +1,7 @@
 package ro.editii.scriptorium.tei;
 
 
+import lombok.RequiredArgsConstructor;
 import ro.editii.scriptorium.Util;
 import ro.editii.scriptorium.model.Author;
 
@@ -19,13 +20,10 @@ import java.util.List;
  * 'alecsandri', 'alecsandri_vasile', 'alecsandri_vasile_2', 'alecsandri_vasile_3' ...
  * }
  */
+@RequiredArgsConstructor
 public class CandidateStrIdGeneratorForAuthor implements Iterable<String> {
 
-    Author author;
-
-    public CandidateStrIdGeneratorForAuthor(Author author) {
-        this.author = author;
-    }
+    final Author author;
 
     @Override
     public Iterator<String> iterator() {
@@ -38,14 +36,14 @@ public class CandidateStrIdGeneratorForAuthor implements Iterable<String> {
  */
 class CandidateStrIdGeneratorForAuthor_Iterator implements Iterator<String> {
 
-    List<String> firstPropositions = new ArrayList<String>();
+    final List<String> firstPropositions = new ArrayList<>();
     Iterator<String> iterator;
 
     String lastProposition;
     int counter = 1;
 
     boolean hasNext = true;
-    Author author;
+    final Author author;
 
     protected boolean isSpecialAuthor() {
         return Author.SPECIAL_AUTHORS.values().stream().anyMatch( it -> it.equals(this.author));
@@ -53,7 +51,7 @@ class CandidateStrIdGeneratorForAuthor_Iterator implements Iterator<String> {
 
     CandidateStrIdGeneratorForAuthor_Iterator(Author author) {
         this.author = author;
-        String last_name_lower = Util.urlFriendify(author.getLastName());
+        final String last_name_lower = Util.urlFriendify(author.getLastName());
 
         /* author is specified as special author */
         if (this.isSpecialAuthor()) {
@@ -123,7 +121,7 @@ class CandidateStrIdGeneratorForAuthor_Iterator implements Iterator<String> {
      * in the {recommended-author-urls.properties} resource file.
      */
     protected boolean hasRecommandation(String strId) {
-        String recom = Author.RECOMMENDED_AUTHOR_MAPPINGS.getProperty(strId);
+        final String recom = Author.RECOMMENDED_AUTHOR_MAPPINGS.getProperty(strId);
         return (recom != null && recom.equals(this.author.getOriginalNameInTeiFile()));
     }
 
@@ -134,7 +132,7 @@ class CandidateStrIdGeneratorForAuthor_Iterator implements Iterator<String> {
      * while the official 'recommended' Caragiale is Ion-Luca.
      */
     protected boolean anotherAuthorWithSameStrIdHasRecommandation(String strId) {
-        String recommended = Author.RECOMMENDED_AUTHOR_MAPPINGS.getProperty(strId);
+        final String recommended = Author.RECOMMENDED_AUTHOR_MAPPINGS.getProperty(strId);
         if (recommended == null)
             return false;
         final Author that = Author.newFromOriginalNameInTeiFile(recommended);

@@ -5,6 +5,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+import ro.editii.scriptorium.Util;
 
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
@@ -16,6 +17,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,11 +28,12 @@ import java.util.function.Predicate;
 public class XpathTool {
 
     final private static NamespaceContext namespaceContext = new TeiNamespaceResolver();
+    public static final String DIV = Util.DIV;
 
     @Getter
     Node root;
 
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 
     /**
      *
@@ -86,6 +89,14 @@ public class XpathTool {
         return this.applyXpathForString(xpath_str);
     }
 
+    public List<Node> xpath_jl(String xpath_str) {
+        return this.applyXpathForJavaList(xpath_str);
+    }
+
+    public NodeList xpath_ls(String xpath) {
+        return this.applyXpathForNodeSet(xpath);
+    }
+
 
     /**
      * note : we do not use XPathConstants.STRing because that only bring the first text element
@@ -113,21 +124,27 @@ public class XpathTool {
         return sb.toString();
     }
 
+    public List<Node> applyXpathForJavaList(String str_xpath) {
+        final var resp = applyXpathForNodeSet(str_xpath);
+        return nodeSet2List(resp);
+    }
+
     public NodeList applyXpathForNodeSet(String str_xpath) {
         try {
             return (NodeList) this._applyXpath(str_xpath, XPathConstants.NODESET);
         } catch (XPathExpressionException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(String.format("for [%s]", str_xpath),
+                    e);
         }
     }
 
 
     public synchronized Object _applyXpath(String str_xpath, QName qname) throws XPathExpressionException {
-        XPathFactory xPathfactory = XPathFactory.newInstance();
-        XPath xpath = xPathfactory.newXPath();
+        final XPathFactory xPathfactory = XPathFactory.newInstance();
+        final XPath xpath = xPathfactory.newXPath();
         xpath.setNamespaceContext(this.namespaceContext);
-        XPathExpression expr = xpath.compile(str_xpath);
-        Object result = expr.evaluate(root, qname);
+        final XPathExpression expr = xpath.compile(str_xpath);
+        final Object result = expr.evaluate(root, qname);
         return result;
     }
 
@@ -153,21 +170,28 @@ public class XpathTool {
         return result;
     }
 
+    public static synchronized String getXPathRelativeTo(Node node, String beginning) {
+        final String wholeXpath = XpathTool.getXPath(node);
+        assert wholeXpath.startsWith(beginning);
+        final String xpath = wholeXpath.substring(beginning.length());
+        return xpath;
+    }
+
     public static synchronized String getXPath(Node node) {
-        Node parent = node.getParentNode();
+        final Node parent = node.getParentNode();
         if (parent == null) {
             return "";
         }
 
-        Collection<Node> prevSiblings = previousSiblings(node);
+        final Collection<Node> prevSiblings = previousSiblings(node);
         int nrPreviousDivs = prevSiblings.stream()
-            .filter(nd -> "div".equalsIgnoreCase(nd.getNodeName()))
+            .filter(nd -> DIV.equalsIgnoreCase(nd.getNodeName()))
             .toArray()
             .length;
 
-        Collection<Node> nextSiblings = nextSiblings(node);
+        final Collection<Node> nextSiblings = nextSiblings(node);
         int nrNextDivs = nextSiblings.stream()
-            .filter(nd -> "div".equalsIgnoreCase(nd.getNodeName()))
+            .filter(nd -> DIV.equalsIgnoreCase(nd.getNodeName()))
             .toArray()
             .length;
 
@@ -262,6 +286,23 @@ public class XpathTool {
             selectRec(child, predicate, acc);
         }
     }
+
+    static List<Node> nodeSet2List(NodeList nodeList) {
+        final List<Node> resp = new ArrayList<>(nodeList.getLength());
+        for (int i = 0; i < nodeList.getLength(); i++) {
+            resp.add(nodeList.item(i));
+        }
+        assert resp.size() == nodeList.getLength();
+        return resp;
+    }
+
+    public Node xpath_one(String xpath) {
+        final NodeList nodeList = this.applyXpathForNodeSet(xpath);
+        int listLength = nodeList.getLength();
+        if (listLength != 1)
+            throw new IllegalStateException(String.format("more than exactly one elem: %d for xpath [%s]", listLength, xpath));
+        return nodeList.item(0);
+    }
 }
 
 
@@ -282,7 +323,5 @@ class CustomNodeList implements NodeList {
     public void add(Node node) {
         this.list.add(node);
     }
-
-
 
 }

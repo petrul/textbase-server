@@ -2,7 +2,7 @@
 <html
         xmlns="http://www.w3.org/1999/xhtml"
         xmlns:th="http://www.thymeleaf.org"
-        th:lang="${language}"  lang="ro">
+        th:lang="${language}"  lang="ro" >
 <head>
     <meta charset="utf-8">
     <title th:text="${author.visualName + ' — ' + op.head + ' — ' + div.head }">Vasile Alecsandri — Scrieri — Scrieri</title>
@@ -11,7 +11,8 @@
     <link th:if=${prev} rel="prev" th:href="@{|/${prev.completePath}|}" href="prev_url" />
     <link th:if=${next} rel="next" th:href="@{|/${next.completePath}|}" href="next_url" />
 
-    <script th:replace="fragments/google-analytics" ></script>
+    <script th:replace="~{fragments/google-analytics}" ></script>
+    <div th:replace="~{fragments/google-one-tap}"></div>
 
     <link rel="stylesheet" 
         href="../static/bootstrap-5.2.1-dist/css/bootstrap.min.css"
@@ -74,31 +75,16 @@
               <li class="first"><a href="/" th:href=@{/} class="icon-home"></a></li>
 
               <li><a href="#" th:href=@{|/${author.strId}|} th:text="${author.visualName}">Vasile Veselovschii</a></li>
-              <li th:each="b: ${breadcrumb}"><a href="#" th:href="@{|/${b.completePath}|}" th:text="${b.head}">Opus or div head</a></li>
+              <li th:each="b: ${breadcrumb}"><a href="#" th:href="@{|/${b.completePath}|}" th:text="${b.visualLabel}">Opus or div head</a></li>
               <li th:if="false"><a href="#">Chapter 1</a></li>
               <li class="last active" th:if="false"><a href="#">Chapter 1.1</a></li>
 
             </ul>
           </div>
-        
-        <!--/* <nav id="nav" aria-label="breadcrumb">
-            <ul class="breadcrumb">
-                <li class="breadcrumb-item" ><a href="/" th:href=@{/}><span class="glyphicon glyphicon-home"/>Home</a></li>
-                <li class="breadcrumb-item" ><a href="#" th:href=@{|/${author.strId}|} th:text="${author.visualName}">Vasile Veselovschii</a></li>
-                <li class="breadcrumb-item" th:each="b: ${breadcrumb}"><a href="#" th:href="@{|/${b.completeUrl}|}" th:text="${b.head}">Opus</a></li>
-                <li class="breadcrumb-item" th:if="false"><a href="#">Chapter 1</a></li>
-                <li class="breadcrumb-item" th:if="false"><a href="#">Chapter 1.1</a></li>
-            </ul>
-        </nav> */-->
-
 
         <!-- body of text -->
         <div class="body-of-text" th:utext="${text}" >
             <div><div type="div2">
-                    <!--<a id="share-button1" href="#" class="fab">-->
-                            <!--+<i class="fa fa-plus my-float">+</i>-->
-                    <!--</a>-->
-
                 <h2>Moș Nichifor Coțcariul (h2)</h2>
                 <p class="subtitle">(apărut în revista Foamea în 1345)</p>
                 <p>Moș Nichifor nu-i o închipuire 
@@ -157,13 +143,18 @@
              </div>
         </div>
 
+        <p class="deco-end"><img class="deco-end" th:src="@{/img/deco/deco-ending-style.svg}" />
+            <!--                <xsl:attribute name="src">-->
+            <!--                    <xsl:text>..</xsl:text><xsl:value-of select="$relativeRoot"/><xsl:text>/img/deco/deco-ending-style.svg</xsl:text>-->
+            <!--                </xsl:attribute>-->
+        </p>
         <ul 
-            id="toc" 
-            th:if="${children != null && children.size() > 0}"
-            >
+            id="toc"
+            th:if="${children != null && children.size() > 0}" >
+
             <li th:each="child: ${children}">
                 <a 
-                    th:href="@{|${#httpServletRequest.requestURI}/${child.urlFragment}|}" 
+                    th:href="@{|${requestUri}/${child.urlFragment}|}"
                     href="#">
                     <span th:text="${child.head}">First subchapter</span>
                 </a>
@@ -175,17 +166,17 @@
         </ul>
 
         <div id="share-buttons-bottom"
-             th:with="thisurl=${#httpServletRequest.requestURI}">
+             th:with="thisurl=${requestUri}">
             <a
                     href="https://twitter.com/share?url=https://textbase.scriptorium.ro&amp;text=Ia%20uite%20ce-am%20gasit!&amp;hashtags=textbase"
-                    th:href="'https://twitter.com/share?url=http://textbase.scriptorium.ro' + ${#httpServletRequest.requestURI} + '&amp;text=' + ${author.visualName + ' — ' + op.head + ' — ' + div.head } + ' #textbase'"
+                    th:href="'https://twitter.com/share?url=http://textbase.scriptorium.ro' + ${requestUri} + '&amp;text=' + ${author.visualName + ' — ' + op.head + ' — ' + div.head } + ' #textbase'"
                     target="_blank">
                 <img src="/img/twitter.svg" alt="Share on Twitter" />
             </a>
 
             <a
                     href="http://www.facebook.com/sharer.php?u=https://textbase.scriptorium.ro"
-                    th:href="'http://www.facebook.com/sharer.php?u=http://textbase.scriptorium.ro' + ${#httpServletRequest.requestURI}"
+                    th:href="'http://www.facebook.com/sharer.php?u=http://textbase.scriptorium.ro' + ${requestUri}"
                     target="_blank">
                 <img src="/img/facebook.svg" alt="Share on Facebook" />
             </a>

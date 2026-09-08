@@ -1,0 +1,17 @@
+    <!-- Google One Tap - see GoogleAuthController/GoogleTokenInfoVerifier.
+         googleClientId/currentUsername come from GlobalModelAttributes
+         (every page gets them, not just ones that explicitly ask). Renders
+         nothing at all if the feature isn't configured (blank client id)
+         or someone's already signed in. -->
+    <th:block th:if="${googleClientId != null and !googleClientId.isEmpty() and currentUsername == null}">
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <div id="g_id_onload"
+             th:attr="data-client_id=${googleClientId}"
+             data-context="signin"
+             data-ux_mode="redirect"
+             data-login_uri="/api/auth/google"
+             data-auto_select="false"
+             data-auto_prompt="true"
+             data-itp_support="true">
+        </div>
+    </th:block>

@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class DomTool {
 
     public static Collection<Node> nodeList2Collection(NodeList nodeList) {
-        ArrayList<Node> arr = new ArrayList<>(nodeList.getLength());
+        final ArrayList<Node> arr = new ArrayList<>(nodeList.getLength());
         for (int i = 0; i < nodeList.getLength(); i++) {
             arr.add(nodeList.item(i));
         }
@@ -76,6 +76,8 @@ public class DomTool {
     public static Node deepCopy(Node node) {
         final Document document = newDocument();
         return document.importNode(node, true);
+//        document.importNode(node, true);
+//        return document;
     }
 
     public static Node rootForResults (NodeList nodeList) {
@@ -102,15 +104,6 @@ public class DomTool {
 
     public static void removeSubnodeByNodename(Node node, String nodeName) {
         removeSubnodesByNodenames(node, new String[] { nodeName });
-//        Collection<Node> children = DomTool.nodeList2Collection(node.getChildNodes());
-//        List<Node> labelChildren = children.stream().filter(it -> it.getNodeName().equals(nodeName)).collect(Collectors.toList());
-//
-//        labelChildren.stream().forEach(it -> {
-//            node.removeChild(it);
-//        });
-//
-//        children = DomTool.nodeList2Collection(node.getChildNodes()); // again, because some might have been removed
-//        children.stream().forEach(it -> removeSubnodeByNodename(it, nodeName));// recurse
     }
 
     /**
@@ -131,8 +124,4 @@ public class DomTool {
         children = DomTool.nodeList2Collection(node.getChildNodes()); // again, because some might have been removed
         children.stream().forEach(it -> removeSubnodesByNodenames(it, nodeNames));// recurse
     }
-
-//    String getTextContentRec(Node node) {
-//
-//    }
 }

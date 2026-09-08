@@ -1,14 +1,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="ro">
 <head>
-    <script>
-        const params = new Proxy(new URLSearchParams(window.location.search), { get: (searchParams, prop) => searchParams.get(prop), });
-        const nr = params.nr;
-        if (nr == null) window.location.href = "app/index.html";
-    </script>
     <title>TEXT ❖ BASE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <script th:replace="fragments/google-analytics" ></script>
+    <script th:replace="~{fragments/google-analytics}" ></script>
+    <div th:replace="~{fragments/google-one-tap}"></div>
 
     <link rel="stylesheet" 
         href="../static/bootstrap-5.2.1-dist/css/bootstrap.min.css"

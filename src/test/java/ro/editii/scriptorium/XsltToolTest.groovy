@@ -39,12 +39,12 @@ class XsltToolTest {
     }
 
     @Test
-    public void testXml2Text() throws IOException, URISyntaxException {
+    void testXml2Text() throws IOException, URISyntaxException {
         URL xsltResource = this.getClass().getClassLoader().getResource("xslt/xml2text.xsl")
         URL resource = this.getClass().getClassLoader().getResource("Alecsandri-Scrieri-excerpt1.xml")
-        XpathTool xpathTool = new XpathTool(resource.openStream(), resource.toURI().toASCIIString())
-        XsltTool xsltTool = new XsltTool(resource.openStream());
-        String res = xsltTool.applyXsltForString(xsltResource.openStream(), xsltResource.toURI().toString());
+//        XpathTool xpathTool = new XpathTool(resource.openStream(), resource.toURI().toASCIIString())
+        final XsltTool xsltTool = new XsltTool(resource.openStream())
+        final String res = xsltTool.applyXsltForString(xsltResource.openStream(), xsltResource.toURI().toString());
         LOG.info("{}", res.length())
 
         assert xsltTool.getRawText().length() > 100;

@@ -1,8 +1,6 @@
 package ro.editii.scriptorium.scheduled;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -16,29 +14,17 @@ import ro.editii.scriptorium.tei.AuthorStrIdComputer;
 import ro.editii.scriptorium.tei.TeiRepo;
 
 @Component
+@RequiredArgsConstructor
 @Profile("autoimport")
 public class TeiImportScheduler {
 
-    @Autowired
-    protected TeiFileRepository teiFileRepository;
-
-    @Autowired
-    protected AuthorRepository authorRepository;
-
-    @Autowired
-    protected TeiDivRepository teiDivRepository;
-
-    @Autowired
-    protected AuthorStrIdComputer authorStrIdComputer;
-
-    @Autowired
-    protected TeiFileDbService teiFileDbService;
-
-    @Autowired
-    TeiRepo teiRepo;
-
-    @Autowired
-    AdminService adminService;
+    final protected TeiFileRepository teiFileRepository;
+    final protected AuthorRepository authorRepository;
+    final protected TeiDivRepository teiDivRepository;
+    final protected AuthorStrIdComputer authorStrIdComputer;
+    final protected TeiFileDbService teiFileDbService;
+    final TeiRepo teiRepo;
+    final AdminService adminService;
 
     @Scheduled(fixedRate = 15 * 1000)
     public void importTeis() {
@@ -46,7 +32,5 @@ public class TeiImportScheduler {
             adminService.reimportFresherTeis(new NoWriter());
         }
     }
-
-    final private static Logger LOG = LoggerFactory.getLogger(TeiImportScheduler.class);
 }
 

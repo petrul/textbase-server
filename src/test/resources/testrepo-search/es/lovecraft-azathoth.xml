@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+   <teiHeader>
+      <fileDesc>
+         <titleStmt>
+            <title>Azathoth</title>
+            <author>Howard Phillips Lovecraft</author>
+         </titleStmt>
+         <editionStmt>
+            <edition>
+               <date>2022-09-10T10:20:21Z</date>
+            </edition>
+         </editionStmt>
+         <publicationStmt/>
+         <sourceDesc/>
+      </fileDesc>
+      <profileDesc>
+         <langUsage/>
+         <textClass>
+            <keywords scheme="unknown">
+               <list>
+                  <item/>
+               </list>
+            </keywords>
+         </textClass>
+      </profileDesc>
+      <revisionDesc>
+         <listChange>
+            <change>
+               <name/>
+               <date>2022-09-10T19:51:42.128348097</date>
+            </change>
+         </listChange>
+      </revisionDesc>
+   </teiHeader>
+   <text>                    
+      <body>
+         <head>Azathoth</head>
+         <author>Howard Phillips Lovecraft</author>
+         <p rend="italic">2022-06-20</p>
+         <div type="div1">
+            <head>Azathoth</head>
+            <p rend="start">Cuando vejez se cayó en el mundo, y la maravilla se fue de las mentes de los hombres; cuando ciudades grises encabritaron en cielos llenos de humo altas torres sombrías y feas, en cuyas sombras nadie puede soñar en el sol o los prados florecientes de la Primavera; cuando el conocimiento quita la tierra de su manto de belleza y los poetas no cantan jamás de fantasmas distorsionados vistos por ojos legañosos que miran adentro; cuando estas cosas habían pasado, y las esperanzas infantiles se habían ido para siempre, había un hombre que viajó de la vida en una búsqueda en los espacios donde habían huido los sueños del mundo.</p>
+            <p rend="justify">Del nombre y hogar de este hombre poco está escrito, porque eran del mundo despierto sólo; pero se dice que los dos eran poco conocidos. Basta decir que él vivía en una ciudad de paredes altas donde crepúsculo estéril reinaba, que él trabajaba todo el día entre sombra y confusión, regresando en la noche a un cuarto cuya ventana solo se abría, no hacia campos abiertos y arboledas, sino hacia un patio oscuro al cual otras ventanas miraban en desesperación embotada. De esa ventana con bisagras uno podría ver fácilmente sólo paredes y ventanas, salvo a veces cuando uno se ladea y trata de ver las estrellas pequeñas que pasaban. Y porque paredes y ventanas meras pronto tienen que llevarlo a la locura a uno que lee y sueña mucho, el morador de ese cuarto solía noche tras noche ladearse por la ventana y mirar arriba para ver algun fragmento de las cosas fuera de el mundo despierto y las ciudades altas. Después de años empezaba a llamarles a las estrellas navegadoras lentas por nombre, y las seguía con la imginación cuando desafortunadamente planeaban fuera de su visto; hasta que eventualmente su visión se abrió hacia muchas panoramas secretos de cuya existencia ningún ojo común sospechaba. Y una noche un abismo grande fue cruzado, y los cielos atormentados por sueños se hincharon abajo a la ventana del observador solitario para combinarse con el aire estirado de su cuarto y hacerlo a él una parte de su maravilla fabulosa.</p>
+            <p rend="justify">Vinieron a ese cuarto raudales descabellados de medianoche violeta reluciendo con polvo de oro, vórtices de polvo y fuego, arremolinándose de los ultimos espacios y perfumes pesados de más allá de los mundos. Océanos opiatos vertían allá, iluminados por soles que el ojo nunca puede ver y conteniendo en sus remolinos delfínes extraños y ninfas del mar de profundiades no extraordinarias. Infinito silencio se arremolinó alrededor del soñador y lo llevó sin tocar el cuerpo que se ladeaba rígido de la ventana solitaria; y por días que no se contan en los calendarios de los hombres las mareas de esferas distantes que lo llevaron suavemente para reunirse con el curso de otros ciclos que cariñosamente lo dejaron durmiendo en una orilla verde de amanecer, una orilla verde fragrante con flores de nenúfar y salpicada por camalotes rojos....</p>
+            <p rend="justify">¡Gracias por leer este libro de <ref target="https://www.elejandria.com/">www.elejandria.com</ref>!</p>
+            <p rend="justify">Descubre nuestra colección de obras de dominio público en castellano en nuestra web</p>
+         </div>
+      </body>
+   </text>
+</TEI>

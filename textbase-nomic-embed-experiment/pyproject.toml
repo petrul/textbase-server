@@ -1,0 +1,15 @@
+[project]
+name = "textbase-nomic-embed-experiment"
+version = "0.1.0"
+description = "Experiment: embed textbase chapters with Ollama's nomic-embed-text, store/query them in the int Milvus"
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.32",
+    "beautifulsoup4>=4.12",
+    "langdetect>=1.0.9",
+    "pymilvus>=2.4",
+    "flask>=3.1",
+]
+
+[tool.uv]
+package = false

@@ -2,13 +2,15 @@ package ro.editii.scriptorium.tei;
 
 import lombok.Getter;
 import ro.editii.scriptorium.Util;
+import ro.editii.scriptorium.model.Languages;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class CombinedTeiRepo implements TeiRepo {
+public class CombinedTeiRepo implements TeiRepo, Serializable {
 
     @Getter
     List<TeiRepo> repos;
@@ -29,11 +31,7 @@ public class CombinedTeiRepo implements TeiRepo {
 
     public CombinedTeiRepo(List<TeiRepo> repos) {
         this.repos = repos;
-        this.name = "combined " + repos.stream().map(TeiRepo::getName).collect(Collectors.joining(","));
-    }
-
-    public CombinedTeiRepo(TeiRepo... repos) {
-        this(Arrays.asList(repos));
+        this.name = "combined: " + repos.stream().map(TeiRepo::getName).collect(Collectors.joining(","));
     }
 
     @Override
@@ -67,6 +65,24 @@ public class CombinedTeiRepo implements TeiRepo {
         for (TeiRepo r : this.repos) {
             if (r.has(resName))
                 return r.getFile(resName);
+        }
+        throw new IllegalArgumentException("no res named " + resName);
+    }
+
+    @Override
+    public Languages getLanguageHint(String resName) {
+        for (TeiRepo r : this.repos) {
+            if (r.has(resName))
+                return r.getLanguageHint(resName);
+        }
+        throw new IllegalArgumentException("no res named " + resName);
+    }
+
+    @Override
+    public String getRepoNameForFile(String resName) {
+        for (TeiRepo r : this.repos) {
+            if (r.has(resName))
+                return r.getName();
         }
         throw new IllegalArgumentException("no res named " + resName);
     }

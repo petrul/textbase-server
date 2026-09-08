@@ -1,0 +1,16 @@
+FROM eclipse-temurin:25-jre
+COPY build/libs/textbase-server-*-application.jar /textbase-server.jar
+
+ENV MYSQL_HOST undefined
+ENV MYSQL_DB undefined
+ENV MYSQL_USER undefined
+ENV MYSQL_PASSWORD undefined
+
+VOLUME /scriptorium-masters
+VOLUME /cache
+
+RUN useradd dockerapp -u 10001
+USER 10001
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-Xmx4g", "-Xss20m", "-jar", "/textbase-server.jar"]

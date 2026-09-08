@@ -1,14 +1,13 @@
-package ro.editii.scriptorium.rest;
+package ro.editii.scriptorium.rest
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
+
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.web.client.RestTemplate
-import ro.editii.scriptorium.TestConfig;
+import ro.editii.scriptorium.TestConfig
 
-import static org.junit.jupiter.api.Assertions.*;
-import static ro.editii.scriptorium.GTestUtil.*
+import static ro.editii.scriptorium.GTestUtil.p
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = [TestConfig.class ])

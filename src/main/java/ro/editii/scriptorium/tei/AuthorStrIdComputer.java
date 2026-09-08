@@ -29,12 +29,6 @@ public class AuthorStrIdComputer {
 
         for (String candidate : candidates) {
 
-//            if (Author.FORBIDDEN_AUTHOR_NAMES.contains(candidate))
-//                continue;
-
-//            String entry = Author.RECOMMENDED_AUTHOR_MAPPINGS.getProperty(candidate);
-
-//            if (entry == null) {
                 // no recommandation for this candidate url fragment
                 Optional<Author> optionalAuthor = this.authorRepository.getByStrId(candidate);
                 if (optionalAuthor.isPresent()) {
@@ -57,18 +51,6 @@ public class AuthorStrIdComputer {
                     author.setStrId(candidate);
                     return candidate;
                 }
-
-//            } else {
-//                // there is a recommandation by this url fragment
-//                if (entry.equals(author.getOriginalNameInTeiFile())) {
-//                    // the recommandation is meant for us : we are "the" caragiale_ionluca
-//                    author.setStrId(candidate);
-//                    return candidate;
-//                } else {
-//                    // the recommandation is not for us: we are caragiale mateiu, so try another candidate
-//                    continue;
-//                }
-//            }
         }
 
         throw new IllegalStateException("should never get here, the iterator is infinite");

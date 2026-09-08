@@ -1,40 +1,33 @@
 package ro.editii.scriptorium.tei
 
-
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration
+import org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.TestPropertySource
 import ro.editii.scriptorium.TestConfig
-import ro.editii.scriptorium.dao.AuthorRepository
+import ro.editii.scriptorium.TestUtils
 import ro.editii.scriptorium.dao.TeiDivRepository
-import ro.editii.scriptorium.dao.TeiFileRepository
+import ro.editii.scriptorium.model.Languages
 
 import static ro.editii.scriptorium.GTestUtil.*
+import static ro.editii.scriptorium.TestUtils.TEI_ELEM
 
 @TestPropertySource(properties=[
         "spring.datasource.url=jdbc:h2:mem:myDb;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.hibernate.ddl-auto = create"])
+        "spring.jpa.hibernate.ddl-auto = create",
+        "spring.main.allow-bean-definition-overriding=true"])
 @SpringBootTest(classes = [ TestConfig.class ])
+@EnableAutoConfiguration(exclude= [KafkaAutoConfiguration.class])
 class ParseTeiFileIntoMemDbTest {
 
-    @Autowired
-    AuthorRepository authorRepository
-
-    @Autowired
-    TeiFileRepository teiFileRepository
-
-    @Autowired
-    TeiDivRepository teiDivRepository
-
-    @Autowired
-    AuthorStrIdComputer authorStrIdComputer
-
-    @Autowired
-    JdbcTemplate jdbcTemplate
+    @Autowired TeiDivRepository teiDivRepository
+    @Autowired JdbcTemplate jdbcTemplate
+    @Autowired TeifileParser teifileParser
 
     @BeforeEach
     void before() {
@@ -42,30 +35,30 @@ class ParseTeiFileIntoMemDbTest {
         this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 0")
         this.jdbcTemplate.update("truncate table tei_file_authors")
         this.jdbcTemplate.update("truncate table author")
-        this.jdbcTemplate.update("truncate table tei_div")
+        this.jdbcTemplate.update("truncate table ${TestUtils.TEI_ELEM}")
         this.jdbcTemplate.update("truncate table tei_file")
         this.jdbcTemplate.update("SET FOREIGN_KEY_CHECKS = 1")
 
         assert countTableRows(this.jdbcTemplate, "author") == 0
         assert countTableRows(this.jdbcTemplate, "tei_file_authors") == 0
-        assert countTableRows(this.jdbcTemplate, "tei_div") == 0
+        assert countTableRows(this.jdbcTemplate, TestUtils.TEI_ELEM) == 0
     }
 
     @Test
     void disabledChapters() {
-        assert ParseTeiFileIntoDb.isMarkedWithX("[x] foaie verde")
-        assert ParseTeiFileIntoDb.isMarkedWithX("[X] foaie verde")
-        assert ParseTeiFileIntoDb.isMarkedWithX("[Xx] foaie verde")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie [Xx] verde")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie [x] verde")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  [Xx] ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  [x] ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  [x]")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  [X] ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  /X/ ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  /x/ ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  |x| ")
-        assert ParseTeiFileIntoDb.isMarkedWithX("foaie verde  |X| ")
+        assert TeifileParser.isMarkedWithX("[x] foaie verde")
+        assert TeifileParser.isMarkedWithX("[X] foaie verde")
+        assert TeifileParser.isMarkedWithX("[Xx] foaie verde")
+        assert TeifileParser.isMarkedWithX("foaie [Xx] verde")
+        assert TeifileParser.isMarkedWithX("foaie [x] verde")
+        assert TeifileParser.isMarkedWithX("foaie verde  [Xx] ")
+        assert TeifileParser.isMarkedWithX("foaie verde  [x] ")
+        assert TeifileParser.isMarkedWithX("foaie verde  [x]")
+        assert TeifileParser.isMarkedWithX("foaie verde  [X] ")
+        assert TeifileParser.isMarkedWithX("foaie verde  /X/ ")
+        assert TeifileParser.isMarkedWithX("foaie verde  /x/ ")
+        assert TeifileParser.isMarkedWithX("foaie verde  |x| ")
+        assert TeifileParser.isMarkedWithX("foaie verde  |X| ")
 
         final tei = """
         <TEI xmlns="http://www.tei-c.org/ns/1.0">
@@ -120,16 +113,10 @@ class ParseTeiFileIntoMemDbTest {
          </body></text></TEI>
         """
 
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
+        this.teifileParser.parse(tei, Languages.RU)
+        assert countTeiElem() == 2
 
-        parser.parse()
-        assert this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class) == 2
-
-        def list = this.jdbcTemplate.queryForList("select head from tei_div;", String.class)
+        final list = this.jdbcTemplate.queryForList("select head from $TEI_ELEM;", String.class)
         list.each {p it}
         assert list.find {it.contains('[')} == null
     }
@@ -169,26 +156,20 @@ class ParseTeiFileIntoMemDbTest {
        </div>
        </body></text></TEI>
         """
+        this.teifileParser.parse(tei, Languages.ES)
 
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
+        assert countTeiElem() > 0
+        assert this.jdbcTemplate.queryForList("select head from $TEI_ELEM;", String.class).size() > 0
 
-        parser.parse()
-        p this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        p this.jdbcTemplate.queryForList("select head from tei_div;", String.class)
-
-        def list = this.jdbcTemplate.queryForList("select head from tei_div;", String.class)
+        final list = this.jdbcTemplate.queryForList("select head from $TEI_ELEM;", String.class)
         assert list.size() == 2
         assert list.first() == 'La princesse Flora'
         assert list.find {it.contains('[')} == null
         assert list.get(1) == 'I La princesse Flora à sa parente, à Moscou.'
 
         // also assert hierarchy is kept
-        def div2 = this.teiDivRepository.findByHead('I La princesse Flora à sa parente, à Moscou.').first()
-        def div1 = this.teiDivRepository.findByHead('La princesse Flora').first()
+        final div2 = this.teiDivRepository.findByHead('I La princesse Flora à sa parente, à Moscou.').first()
+        final div1 = this.teiDivRepository.findByHead('La princesse Flora').first()
         assert div2.parent.head == div1.head
     }
 
@@ -201,18 +182,10 @@ class ParseTeiFileIntoMemDbTest {
                <p rend="justify">         S-a împlinit, Ia 1</p>
            </div>
         """)
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
-        parser.parse()
+        this.teifileParser.parse(tei, Languages.ES)
 
-        p this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        final parsedHead = this.jdbcTemplate.queryForList("select head from tei_div;", String.class)[0]
-        p parsedHead
+        final parsedHead = this.jdbcTemplate.queryForList("select head from ${TestUtils.TEI_ELEM};", String.class)[0]
         assert parsedHead == 'Cuvânt înainte.'
-
     }
 
     /**
@@ -230,15 +203,9 @@ class ParseTeiFileIntoMemDbTest {
                 </div>
             </div>
         """)
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
-        parser.parse()
+        this.teifileParser.parse(tei, Languages.PT)
 
-        p this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        assert 0 == this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
+        assert 0 == this.countTeiElem()
     }
 
     @Test
@@ -255,17 +222,14 @@ class ParseTeiFileIntoMemDbTest {
                 </head>
             </div>
         """)
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
-        parser.parse()
+        this.teifileParser.parse(tei, Languages.LA)
 
-        p this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        assert 1 == this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        assert "Pula calului" ==  this.jdbcTemplate.queryForList("select head from tei_div;", String.class).get(0)
+        assert 1 == countTeiElem()
+        assert "Pula calului" ==  this.jdbcTemplate.queryForList("select head from ${TEI_ELEM};", String.class).get(0)
+    }
 
+    protected int countTeiElem() {
+        this.jdbcTemplate.queryForObject("select count(*) from ${TEI_ELEM};", Integer.class)
     }
 
     @Test
@@ -280,20 +244,13 @@ class ParseTeiFileIntoMemDbTest {
                 </head>
             </div>
         """)
-        final parser = new ParseTeiFileIntoDb(tei,
-                this.authorRepository,
-                this.teiFileRepository,
-                this.teiDivRepository,
-                this.authorStrIdComputer)
-        parser.parse()
 
-        p this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        assert 1 == this.jdbcTemplate.queryForObject("select count(*) from tei_div;", Integer.class)
-        assert "Pula calului" ==  this.jdbcTemplate.queryForList("select head from tei_div;", String.class).get(0)
+        this.teifileParser.parse(tei, Languages.BG)
+
+        assert 1 == countTeiElem()
+        assert "Pula calului" ==  this.jdbcTemplate.queryForList("select head from tei_elem;", String.class).get(0)
 
     }
-
-
 
 }
 

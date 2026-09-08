@@ -1,6 +1,7 @@
 <html>
 <head>
     <script>
+        /**
         const params = new Proxy(new URLSearchParams(window.location.search), { get: (searchParams, prop) => searchParams.get(prop), });
         const nr = params.nr;
         if (nr == null) {
@@ -12,8 +13,10 @@
             const lastSplit = splits[splits.length - 1];
             window.location.href = "../app/authors/" + lastSplit
         }
+        */
     </script>
-    <script th:replace="fragments/google-analytics" />
+    <script th:replace="~{fragments/google-analytics}" />
+    <div th:replace="~{fragments/google-one-tap}"></div>
     <title th:text="|Author ${author.visualName}|"></title>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
@@ -32,7 +35,8 @@
 
 </head>
 <body>
-    <script th:replace="fragments/google-analytics" ></script>
+    <script th:replace="~{fragments/google-analytics}" ></script>
+    <div th:replace="~{fragments/google-one-tap}"></div>
 
     <div id="navbar" class="navbar">
         <a th:href="@{/}" href="#">TEXT&nbsp;❖&nbsp;BASE</a>
@@ -48,7 +52,7 @@
     <div class="author-card">
         <div class="container">
             <h1><b><span th:text="${author.visualName}"></span></b></h1>
-            <p th:text="${author.description}">Architect & Engineer</p>
+<!--            <p th:text="${author.description}">Architect & Engineer</p>-->
         </div>
     </div>
 
@@ -57,7 +61,7 @@
     </div>
 
     <ul th:each="d: ${rootDivs}" id="opuses-list">
-        <a th:href="@{|${#httpServletRequest.requestURI}/${d.urlFragment}|}" th:title="${d}"><li th:text="${d.head}" /></a>
+        <a th:href="@{|${requestUri}/${d.urlFragment}|}" th:title="${d}"><li th:text="${d.head}" /></a>
     </ul>
 
 

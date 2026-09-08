@@ -1,6 +1,10 @@
 package ro.editii.scriptorium;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,5 +24,23 @@ public class RunStuffOnStartup {
             }
         };
     }
+
+    public CommandLineRunner listBeans(ApplicationContext applicationContext) {
+        return args -> {
+            final String[] names = applicationContext.getBeanDefinitionNames();
+            for (String name: names) {
+                displayBean(applicationContext, name);
+            }
+        };
+
+    }
+
+    private void displayBean(ApplicationContext ctxt, String beanName) {
+        System.out.println(String.format("* [%s] : [%s] ",
+                beanName,
+                ctxt.getBean(beanName).getClass()
+        ));
+    }
+
 
 }

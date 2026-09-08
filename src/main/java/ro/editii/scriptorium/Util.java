@@ -1,24 +1,33 @@
 package ro.editii.scriptorium;
 
 import com.ibm.icu.text.Transliterator;
+import editii.commons.xml.XpathTool;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import ro.editii.scriptorium.model.Author;
+import ro.editii.scriptorium.service.ElemInfo;
+import ro.editii.scriptorium.web.DivController;
+import ro.editii.scriptorium.xslt.XsltTool;
 
-import javax.servlet.http.HttpServletRequest;
+import javax.xml.transform.Transformer;
 import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-/**
- * 
- */
 public class Util {
+
+    public static final String DIV = "div";
+    public static final String BINARY_OBJECT = "binaryObject";
+    public static final String TEI_ELEM = "tei_elem";
 
     /**
      * windows 11-resistent way to get the file path of a URL representing a file
@@ -30,6 +39,10 @@ public class Util {
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String base64Encode(byte[] bytes) {
+        return Base64.getEncoder().encodeToString(bytes);
     }
 
     public static byte[] base64Decode(String s) {
@@ -45,52 +58,48 @@ public class Util {
         return s.replaceFirst("^~", System.getProperty("user.home"));
     }
 
-    // "Nicolae Bălcescu" => nicolae_balcescu
+    /**
+     * @return url URL slug. i.e "Nicolae Bălcescu" => nicolae_balcescu
+     */
     public static String urlFriendify(String s) {
         assert s != null;
 
         s = StringUtils.stripAccents(s);
-
         s = transliterateCyrillic(s);
+        s = transliterateGreek(s);
+        s = transliterateAll(s);
 
         String res = s
                 .trim()
                 .toLowerCase()
-                .replaceAll("ș", "s")
-                .replaceAll("ş", "s")
-                .replaceAll("ț", "t")
-                .replaceAll("ţ", "t")
-                .replaceAll("ă", "a")
-                .replaceAll("î", "i")
-                .replaceAll("â", "a")
-                .replaceAll("ŭ", "u")
-                .replaceAll("à", "a")
-                .replaceAll("ü", "u")
-                .replaceAll("ö", "o")
-                .replaceAll("ô", "o")
-                .replaceAll("é", "e")
-                .replaceAll("è", "e")
-                .replaceAll("ê", "e")
-                .replaceAll("ë", "e")
-                .replaceAll("ç", "c")
-                .replaceAll("ñ", "n")
-                .replaceAll("ò", "o")
+                .replaceAll("[ăàαªâā]", "a")
                 .replaceAll("æ", "ae")
+                .replaceAll("[çćĉċč]", "c")
+                .replaceAll("[éèêëē]", "e")
+                .replaceAll("[ġĝğģǧǵ]", "g")
+                .replaceAll("[îìíī]", "i")
+                .replaceAll("[ṁ]", "m")
+                .replaceAll("[ñṇņňŉ]", "n")
+                .replaceAll("[øöôòº°ō]", "o")
                 .replaceAll("œ", "oe")
+                .replaceAll("[șşśŜŝš]", "s")
                 .replaceAll("ß", "ss")
-                .replaceAll("ª", "a")
+                .replaceAll("[țţṭ]", "t") // two different kinds of t-cedilla
+                .replaceAll("[ûũūùúŭüǔ]", "u")
         ;
-
 
         res = res
                 .replaceAll("\\.+$", "") // remove final dots
-                .replaceAll("\\(", "")
-                .replaceAll("\\)", "")
-                .replaceAll("\\*", "")
-                .replaceAll("[§¡!?¿’`«»<>'ʹ=…]", "")
+                .replaceAll("[\\(\\)]", "")
+                .replaceAll("[·\\*]", "")
+                .replaceAll("[§¡!?¿`«»<>'ʹ=…ʺ`~]", "")
+                .replaceAll("[’]", "_")
+                .replaceAll("[\\?\\!\\[\\]\\\"‘'„”“]", "")
                 .replaceAll("½", "1_2")
                 .replaceAll("¾", "3_4")
-                .replaceAll(":", "_")
+                .replaceAll("%", " percent ")
+                .replaceAll("#", " hash ")
+                .replaceAll("\\+", "_")
                 .replaceAll("—", "_")
                 .replaceAll("-", "_")
                 .replaceAll("–", "_") // \u8211
@@ -98,34 +107,63 @@ public class Util {
         ;
 
         res  = res
-                .replaceAll("[,\\.]", "_")
+                .replaceAll("[,\\.;:]", "_")
                 .replaceAll("&", "_")
-                .replaceAll("[\\?\\!\\[\\]\\\"‘'„”]", "")
                 .replaceAll("\\p{M}", "") // remove accents
-
                 .trim() // again, to remove trailing spaces
                 .replaceAll("\\s+", "_")
                 .replaceAll("_+", "_")
-
             ;
+
+        // trim _ at the beginning and the end
+        res = res
+                .replaceAll("^_+", "")
+                .replaceAll("_+$", "")
+        ;
+
+
 
         return res;
     }
 
+    final static Transliterator cyrillicToLatinTrans = Transliterator.getInstance("Russian-Latin/BGN");
     public static String transliterateCyrillic(String s) {
         if (containsCyrillic(s)) {
-//            String CYRILLIC_TO_LATIN = "Latin-Russian/BGN";
-            String CYRILLIC_TO_LATIN = "Russian-Latin/BGN";
-            Transliterator toLatinTrans = Transliterator.getInstance(CYRILLIC_TO_LATIN);
+            s = cyrillicToLatinTrans.transliterate(s);
+        }
+        return s;
+    }
+
+    public static String transliterateGreek(String s) {
+        if (containsGreek(s)) {
+            final String TRNAME = "Grek-Latn";
+            final Transliterator toLatinTrans = Transliterator.getInstance(TRNAME);
             s = toLatinTrans.transliterate(s);
         }
         return s;
+    }
+
+    final static Transliterator anyToLatinTrans = Transliterator.getInstance("Any-Latin/BGN");
+    public static String transliterateAll(String s) {
+        return anyToLatinTrans.transliterate(s);
     }
 
     public static boolean containsCyrillic(String s) {
         return s.chars()
                 .mapToObj(Character.UnicodeBlock::of)
                 .anyMatch(Character.UnicodeBlock.CYRILLIC::equals);
+    }
+
+    public static boolean containsGreek(String s) {
+        return s.chars()
+                .mapToObj(Character.UnicodeBlock::of)
+                .anyMatch(Character.UnicodeBlock.GREEK::equals);
+    }
+
+    public static boolean containsChinese(String s) {
+        return s.chars()
+                .mapToObj(Character.UnicodeBlock::of)
+                .anyMatch(Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS::equals);
     }
 
     public static String randomAlphanumeric(int n) {
@@ -198,9 +236,9 @@ public class Util {
 
     public static Map<String, Author> readSpecialAuthorsResource() {
         final String resourceName = "special-authors.properties";
-        InputStream resourceAsStream = Author.class.getClassLoader().getResourceAsStream(resourceName);
-        Properties properties = readPropertiesFileWithComments(resourceAsStream);
-        Map<String, Author> result = new HashMap<>();
+        final InputStream resourceAsStream = Author.class.getClassLoader().getResourceAsStream(resourceName);
+        final Properties properties = readPropertiesFileWithComments(resourceAsStream);
+        final Map<String, Author> result = new HashMap<>();
         for ( String key : properties.stringPropertyNames()) {
             final String value = (String) properties.get(key);
             String[] elems = value.split(";");
@@ -228,8 +266,8 @@ public class Util {
     }
 
     public static Set<String> readForbiddenAuthorNames() {
-        InputStream resourceAsStream = Author.class.getClassLoader().getResourceAsStream("forbidden-author-names.txt");
-        Set<String> strings = readTextFileWithComments(resourceAsStream);
+        final InputStream resourceAsStream = Author.class.getClassLoader().getResourceAsStream("forbidden-author-names.txt");
+        final Set<String> strings = readTextFileWithComments(resourceAsStream);
         try {
             resourceAsStream.close();
             return strings;
@@ -255,22 +293,158 @@ public class Util {
         final String xforwardedProto = httpServletRequest != null ? httpServletRequest.getHeader("x-forwarded-proto") : null;
         final String scheme = xforwardedProto != null ? xforwardedProto : httpServletRequest.getScheme();
 
-        UriComponentsBuilder clonedBuilder = uriComponentsBuilder
+        final UriComponentsBuilder clonedBuilder = uriComponentsBuilder
                 .cloneBuilder()
                 .scheme(scheme); // works for https too
 
         return clonedBuilder;
     }
 
-}
+    public static String maxNCharsOf(String str, int n) {
+        if (str == null) return null;
+        assert n > 0;
+        return str.substring(0, Math.min(str.length(), n));
+    }
 
-class DespartitorInSilabe {
-    List<Integer>  desparte (String cuvant) {
-        if (cuvant.length() < 3)
-            return Collections.emptyList();
-            
-    throw new RuntimeException();
+    public static String maxNCharsEllipsis(String str, int n) {
+        assert n > 0;
+        if (n < str.length()) {
+            return maxNCharsOf(str, n) + "...";
+        } else
+            return str;
+    }
+
+    public static byte[] sha256(String string) {
+        try {
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            final byte[] hashbytes = digest.digest(string.getBytes(StandardCharsets.UTF_8));
+            return hashbytes;
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String sha256Hex(String string) {
+        final var hashbytes = sha256(string);
+        final String sha256 = bytesToHex(hashbytes);
+        return  sha256;
+    }
+
+    public static String sha3_256Hex(String string) {
+        final MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA3-256");
+            final byte[] hashbytes = digest.digest(
+                    string.getBytes(StandardCharsets.UTF_8));
+            String sha3Hex = bytesToHex(hashbytes);
+            return  sha3Hex;
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+    private static String bytesToHex(byte[] hash) {
+        StringBuilder hexString = new StringBuilder(2 * hash.length);
+        for (int i = 0; i < hash.length; i++) {
+            String hex = Integer.toHexString(0xff & hash[i]);
+            if(hex.length() == 1) {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
+    static public String[] pathFragments(String path) {
+        return Arrays.stream(path.split("\\/"))
+                .filter(Objects::nonNull)
+                .filter(it -> !it.isEmpty())
+                .filter(it -> !it.isBlank())
+                .toArray(String[]::new);
+    }
+
+    public static void assertTrue(boolean condition) {
+        if (!condition) throw new AssertionError();
+    }
+
+    public static String getExtension(String lastFragm) {
+        final var dotIndex = lastFragm.lastIndexOf('.');
+        if (dotIndex > 0) {
+            return lastFragm.substring(dotIndex + 1).toLowerCase();
+        }
+        return null;
+    }
+
+    /**
+     * @return the basename, possible extension eliminated
+     */
+    public static String basename(String stringWithMaybeExtension) {
+        int indexOf = stringWithMaybeExtension.indexOf('.');
+        if (indexOf > 0) {
+            return stringWithMaybeExtension.substring(0, indexOf);
+        } else
+            return stringWithMaybeExtension;
+    }
+
+    public static String urlEncode(String str) {
+        try {
+            return URLEncoder.encode(str, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String urlDecode(String str) {
+        try {
+            return URLDecoder.decode(str, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Transformer getTransformer(String xslResource) {
+        final URL xsltResource = DivController.class.getClassLoader().getResource(xslResource);
+        try {
+            return XsltTool.getTransformer(xsltResource.openStream(), xslResource);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Runs task on a throwaway thread and gives up after timeoutSeconds,
+     * throwing instead of blocking forever - for calls to dependencies
+     * (e.g. the embedder) that should degrade gracefully rather than hang
+     * a request when that dependency is slow/unresponsive rather than
+     * cleanly down (a plain connection-refused fails fast on its own; a
+     * contended/half-alive service does not).
+     */
+    public static <T> T runWithTimeout(Callable<T> task, int timeoutSeconds) throws Exception {
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            return executor.submit(task).get(timeoutSeconds, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    public static final String TEI_DIV = "tei:div";
+    /**
+     * destructively removes tei:div children from node
+     * so you'd better provide a deep copy or know what you're doing.
+     * @param elemInfo . nodeCopy will be changed by this method
+     */
+    public static XpathTool removeDivChildren(ElemInfo elemInfo) {
+        final Node node = elemInfo.getNodeCopy();
+        final XpathTool xt = new XpathTool(node);
+        final NodeList subdivs = xt.applyXpathForNodeSet(TEI_DIV);
+        if (subdivs.getLength() > 0) {
+            for (int i = 0; i < subdivs.getLength(); i++)
+                node.removeChild(subdivs.item(i));
+        }
+        return xt;
     }
 
 }
-

@@ -4,13 +4,16 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
+import ro.editii.scriptorium.TextbaseConfig
 import ro.editii.scriptorium.dao.AuthorRepository
 import ro.editii.scriptorium.dao.TeiDivRepository
 import ro.editii.scriptorium.dao.TeiFileRepository
+import ro.editii.scriptorium.kafka.TextbaseEventsPublisher
 import ro.editii.scriptorium.model.Author
+import ro.editii.scriptorium.model.Languages
 import ro.editii.scriptorium.model.TeiDiv
 import ro.editii.scriptorium.tei.AuthorStrIdComputer
-import ro.editii.scriptorium.tei.ParseTeiFileIntoDb
+import ro.editii.scriptorium.tei.TeifileParser
 
 import static ro.editii.scriptorium.GTestUtil.p
 
@@ -19,17 +22,27 @@ class TocTest {
     @Test
     void testToc() {
 
-        def autorRep = Mockito.mock(AuthorRepository)
-        def teifileRep = Mockito.mock(TeiFileRepository)
-        def teidivRep = Mockito.mock(TeiDivRepository)
+        final autorRep = Mockito.mock(AuthorRepository)
+        final teifileRep = Mockito.mock(TeiFileRepository)
+        final teidivRep = Mockito.mock(TeiDivRepository)
+        final events = Mockito.mock(TextbaseEventsPublisher)
+        final cfg = new TextbaseConfig()
 
         Author author = new Author(id: 1, firstName: 'Vasile', lastName: 'Alecsandri')
         Mockito
                 .when(autorRep.getByOriginalNameInTeiFile('Alecsandri,Vasile'))
-                .thenReturn(new Optional<>(author))
+                .thenReturn(Optional.of(author))
 
-        List<TeiDiv> divs = []
+        final List<TeiDiv> divs = []
 
+        final parser = new TeifileParser(teifileRep,
+                autorRep,
+                teidivRep,
+                events,
+                cfg,
+                new AuthorStrIdComputer(autorRep))
+
+        long i = 0
         Mockito
                 .when(teidivRep.saveAll(Mockito.any(List<TeiDiv>))).thenAnswer(new Answer<List<TeiDiv>>() {
             @Override
@@ -41,38 +54,35 @@ class TocTest {
             }
         })
 
+        final URL res = this.getClass().getClassLoader().getResource("testrepo/ro/Alecsandri-Scrieri.xml")
+        parser.parse("Alecsandri-Scrieri.xml",
+                res.openStream(),
+                Languages.CA)
+
+        divs.forEach {it.id = ++i }
+
         p "*" * 80
         p divs
 
-        URL res = this.getClass().getClassLoader().getResource("testrepo/ro/Alecsandri-Scrieri.xml")
-        def parser = new ParseTeiFileIntoDb("Alecsandri-Scrieri.xml", res.openStream(),
-            res,
-            autorRep,
-            teifileRep,
-            teidivRep,
-            new AuthorStrIdComputer()
-        )
-
-        parser.parse()
-
-        def opuses = divs.findAll{ it.parent == null}
-        def heads = divs.collect{it.head}
+        final opuses = divs.findAll{ it.parent == null}
+        assert divs.head.size() > 0
+        divs.forEach {assert it.id != null }
 
         opuses.each { op ->
-            assert op.children != null
-            assert op.children.size() > 0
-            Toc toc = new Toc(op)
+            assert op.dbChildren != null
+            assert op.dbChildren.size() > 0
+            final Toc toc = new Toc(op)
             println toc.asList().collect{it.head}.join("\n\t")
         }
 
-        def nicolae_balcescu = divs.find{it.head == "Nicolae Bălcescu"}
-        def constantin_Negruzzi = divs.find{it.head == "Constantin Negruzzi"}
-        def merimee = divs.find{it.head == 'Prosper Mérimée'}
-        def negruzzi_v = constantin_Negruzzi.children.find{ it.head == 'V'}
-        def negruzzi_i = constantin_Negruzzi.children.find{ it.head == 'I'}
-        def merimee_i = merimee.children.find { it.head == 'I'}
+        final nicolae_balcescu = divs.find{it.head == "Nicolae Bălcescu"}
+        final constantin_Negruzzi = divs.find{it.head == "Constantin Negruzzi"}
+        final merimee = divs.find{it.head == 'Prosper Mérimée'}
+        final negruzzi_v = constantin_Negruzzi.dbChildren.find{ it.head == 'V'}
+        final negruzzi_i = constantin_Negruzzi.dbChildren.find{ it.head == 'I'}
+        final merimee_i = merimee.dbChildren.find { it.head == 'I'}
 
-        def biografii = opuses.find {it.head == 'Biografii'}
+        final biografii = opuses.find {it.head == 'Biografii'}
         def toc = new Toc(biografii)
         def toc_heads = toc.collect {it.head}
 

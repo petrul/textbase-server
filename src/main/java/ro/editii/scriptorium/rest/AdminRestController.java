@@ -1,7 +1,10 @@
 package ro.editii.scriptorium.rest;
 
+import io.swagger.v3.oas.annotations.Hidden;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.data.rest.core.annotation.RestResource;
 import org.springframework.web.bind.annotation.*;
 import ro.editii.scriptorium.VersionProperties;
 import ro.editii.scriptorium.dto.TeiRepoDto;
@@ -16,19 +19,14 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
+@RequiredArgsConstructor
+@Hidden
 public class AdminRestController {
 
-    @Autowired
-    TeiRepo teiRepo;
-
-    @Autowired
-    AdminService adminService;
-
-    @Autowired
-    Environment environment;
-
-    @Autowired
-    VersionProperties versionProperties;
+    final TeiRepo teiRepo;
+    final AdminService adminService;
+    final Environment environment;
+    final VersionProperties versionProperties;
 
     @GetMapping("/version")
     public @ResponseBody Map version() {
@@ -57,10 +55,12 @@ public class AdminRestController {
                 .collect(Collectors.toList());
     }
 
+
     @PostMapping("/teirepos/reimportFresher")
     public void teiReposReimportFresher() {
         this.adminService.reimportFresherTeis(new NoWriter());
     }
+
 
     @PostMapping("/teirepos/reimportAll")
     public void teiReposReimportAll() {
@@ -72,15 +72,23 @@ public class AdminRestController {
             this.adminService.reimportFile(file, new NoWriter());
     }
 
+
     @GetMapping("/teirepos/reimport")
     @ResponseBody
     public String getTeiReposReimport(@RequestParam String file) {
         return "works " + file;
     }
 
+
     @PostMapping("/teirepos/forceReimportAll")
     public void teiReposForcefullyReimportAll() {
         this.adminService.destroyAllExistingAndReimportAllTeis(new NoWriter(), true);
+    }
+
+    @PostMapping("/lucene/reindex")
+    @ResponseBody
+    public Map<String, Integer> reindexLucene() {
+        return Map.of("indexed", this.adminService.reindexLucene());
     }
 
 }

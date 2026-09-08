@@ -51,11 +51,6 @@ class GXPathToolTest {
         head.removeChild(label)
         assert head.getChildNodes().length == 2
 
-//        for (int i = 0; i < head.getChildNodes().getLength(); i++) {
-//            final c = head.getChildNodes().item(i);
-//            p "$i - ${c.nodeName} - [${c.nodeValue}]"
-//        }
-
         // label was removed
         assert head.getTextContent().trim() == 'Manifeste și amintiri politice'
     }

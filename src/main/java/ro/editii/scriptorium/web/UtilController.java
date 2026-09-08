@@ -1,14 +1,13 @@
 package ro.editii.scriptorium.web;
 
-import lombok.extern.java.Log;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,13 +19,13 @@ import ro.editii.scriptorium.dao.TeiDivRepository;
 import ro.editii.scriptorium.model.Author;
 import ro.editii.scriptorium.model.TeiDiv;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.servlet.http.HttpServletRequest;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
-@Log
+@Log4j2
 @Controller
 @RequestMapping("/util")
 public class UtilController {
@@ -40,56 +39,65 @@ public class UtilController {
     @GetMapping("/echo")
     @ResponseBody
     public ResponseEntity<String> echo(HttpServletRequest request, UriComponentsBuilder uriComponentsBuilder) {
-        String respText = DebugUtil.logHttpRequestHeaders(request, uriComponentsBuilder);
+        final String respText = DebugUtil.logHttpRequestHeaders(request, uriComponentsBuilder);
         return ResponseEntity.ok().body(respText);
     }
 
     @GetMapping("/random")
     @ResponseBody
     public ResponseEntity<String> random(HttpServletRequest request, UriComponentsBuilder uriComponentsBuilder) {
-        int nr_divs = this.teiDivRepository.getNrOfBottomDivs();
-        int rnd_value = new Random().nextInt(nr_divs);
 
-        TypedQuery<TeiDiv> query = this.entityManager.createQuery(
-                "select parent from TeiDiv parent left outer join parent.children c where c is null",
-                TeiDiv.class);
+        TeiDiv div = this.getAcceptableRandomDiv();
+        final Author author = div.getTeiFile().getAuthor();
+        final List<String> urlFragments = new ArrayList<>(10);
 
-        query.setFirstResult(rnd_value);
-        query.setMaxResults(1);
-        TeiDiv singleResult = query.getSingleResult();
-
-        List<String> urlFragments = new ArrayList<>(10);
-        TeiDiv div = singleResult;
         while (div != null) {
-            LOG.info(div.toString());
             urlFragments.add(div.getUrlFragment());
-            div = div.getParent();
+            div = (TeiDiv) div.getParent();
         }
 
-        Author author = singleResult.getTeiFile().getAuthor();
+
         urlFragments.add(author.getStrId());
 
         Collections.reverse(urlFragments);
-        String redirect_to = urlFragments.stream().collect(Collectors.joining("/"));
+        final String redirect_to = urlFragments.stream().collect(Collectors.joining("/"));
         redirect_to.replaceAll("\\/\\/", "\\/");
 
-        LOG.info("will redirect to row #{} of a total of {} : got tei id #{} head {} url {}",
-                rnd_value, nr_divs, singleResult.getId(), singleResult.getHead(), redirect_to);
-
-        //
-        ServerHttpRequest shr = new ServletServerHttpRequest(request);
+        log.info("will redirect to url [{}]", redirect_to);
 
         final UriComponentsBuilder ucb = Util.cloneUriComponentBuilder(uriComponentsBuilder, request);
-        String url = ucb
+        final String url = ucb
                 .path(redirect_to)
                 .build()
                 .toUriString();
-        ResponseEntity<String> resp = ResponseEntity
+        final ResponseEntity<String> resp = ResponseEntity
                 .status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, url)
                 .build();
         return resp;
     }
-    
-    final private static Logger LOG = LoggerFactory.getLogger(UtilController.class);
+
+    private TeiDiv getAcceptableRandomDiv() {
+        while (true) {
+            final var div = this.getRandomDiv();
+            if (!div.isLicense()) {
+                return div;
+            }
+        }
+    }
+
+    private TeiDiv getRandomDiv() {
+        int nr_divs = this.teiDivRepository.getNrOfBottomDivs();
+        int rnd_value = new Random().nextInt(nr_divs);
+
+        final TypedQuery<TeiDiv> query = this.entityManager.createQuery(
+                "select parent from TeiDiv parent left outer join parent.dbChildren c where c is null",
+                TeiDiv.class);
+
+        query.setFirstResult(rnd_value);
+        query.setMaxResults(1);
+        final TeiDiv singleResult = query.getSingleResult();
+        return singleResult;
+    }
+
 }

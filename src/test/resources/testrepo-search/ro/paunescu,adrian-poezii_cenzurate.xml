@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+   <teiHeader>
+      <fileDesc>
+         <titleStmt>
+            <title>Untitled Document</title>
+            <author>Adrian Păunescu</author>
+         </titleStmt>
+         <editionStmt>
+            <edition>
+               <date>2023-02-03T02:14:11.141393633</date>
+            </edition>
+         </editionStmt>
+         <publicationStmt/>
+         <sourceDesc/>
+      </fileDesc>
+      <profileDesc>
+         <langUsage/>
+      </profileDesc>
+      <revisionDesc>
+         <listChange>
+            <change>
+               <name/>
+               <date>2023-02-04T07:31:07.000568051</date>
+            </change>
+         </listChange>
+      </revisionDesc>
+   </teiHeader>
+   <text>                    
+      <body>
+         <author>Adrian Păunescu</author>
+         <div type="div1">
+            <head>Poezii cenzurate</head>
+            <div type="div2">
+               <div type="div3">
+                  <div type="div4">
+                     <head>Am nevoie de oameni</head>
+                     <lg>
+                        <l>Am nevoie de oameni:</l>
+                        <l>ei sînt răscumpărarea</l>
+                        <l>singurătăţii mele de fond,</l>
+                        <l>oameni la metereze,</l>
+                        <l>oameni în paranteze,</l>
+                        <l>oameni peste tot,</l>
+                        <l>ştiu legea firii,</l>
+                        <l>toţi murim,</l>
+                        <l>unii oameni îmi sînt mai apropiaţi,</l>
+                        <l>alţii mai depărtaţi;</l>
+                        <l>mă uit la ei,</l>
+                        <l>şi nu mă pot hotări.</l>
+                        <l>cine urmează să moară; </l>
+                        <l>nici să mor în locul lor n-aş vrea,</l>
+                        <l>dar nici ei în locul meu, </l>
+                        <l>seara e albastră</l>
+                        <l>ca spirtul medicinal</l>
+                        <l>şi ca ochii morţii.</l>
+                     </lg>
+                     <lg>
+                        <l>Am nevoie de oameni, </l>
+                        <l>dar prin maternităţi</l>
+                        <l>presează nou-născuții, </l>
+                        <l>„faceţi-ne loc, </l>
+                        <l>sîntem prea mulţi,“</l>
+                        <l>eu nu pot face parte</l>
+                        <l>din plutonul de execuţie,</l>
+                        <l>nici măcar să mă gîndesc nu pot</l>
+                        <l>că mîine va lipsi dintre noi </l>
+                        <l>cel mai neînsemnat,</l>
+                        <l>paznicul schițului de la Tarniţa</l>
+                        <l>sau biata nevastă-sa,</l>
+                        <l>suferindă de 17 ani</l>
+                        <l>cine-mi dă dreptul</l>
+                        <l>să fac matematica morţilor,</l>
+                        <l>eu  sînt așa de prost şi de sentimental</l>
+                        <l>că-i plîng şi pe soldații români</l>
+                        <l>morți în filme.</l>
+                     </lg>
+                     <lg>
+                        <l>Nici o moarte nu vine la timp, </l>
+                        <l>toate morțile vin prea devreme,</l>
+                        <l>toate morţile au prioritate,</l>
+                        <l>viaţa pare un răsfăț, </l>
+                        <l>un detestabil privilegiu, </l>
+                        <l>agenţiile de știri în lume </l>
+                        <l>care dacă n-anunţă morți </l>
+                        <l>dau faliment.</l>
+                     </lg>
+                     <lg>
+                        <l>Eu sînt în cu totul altă circumscripție, </l>
+                        <l>eu judec altfel, </l>
+                        <l>eu exagerez altfel, </l>
+                        <l>agenția mea de știri</l>
+                        <l>nu anunță decese, </l>
+                        <l>eu cred </l>
+                        <l>că n-are dreptul să moară </l>
+                        <l>nici un cîine, </l>
+                        <l>e loc destul pe pămînt </l>
+                        <l>Și pentru faună </l>
+                        <l>și pentru floră,<lb/>și pentru toate experimentele practice</l>
+                        <l>și pentru toate speculațiile teoretice,</l>
+                        <l>e loc destul</l>
+                        <l>degeaba intră ucigașii în panică,<lb/>e loc destul,<lb/>chiar și pentru ei e loc,<lb/>chiar și ei au nevoie de oameni,</l>
+                     </lg>
+                     <lg>
+                        <l>Am învăţat</l>
+                        <l>un nou fel de condamnare :</l>
+                        <l>să fii privit în ceafă, </l>
+                        <l>să se uite oamenii</l>
+                        <l>în ceafa ta ;</l>
+                        <l>după cîteva ore de priviri în ceafă</l>
+                        <l>te vei simţi ghilotinat.</l>
+                     </lg>
+                     <lg>
+                        <l>Am nevoie de oameni, </l>
+                        <l>uite, încep să nu mai suport</l>
+                        <l>întrebările nepoatei mele</l>
+                        <l>în care mă recunosc pe mine mic</l>
+                        <l>întrebîndu-mi bunicii :</l>
+                        <l>de ce mor oamenii,</l>
+                        <l>de ce îmbătrînești, tată mare.</l>
+                        <l>cum să fac eu să te ţin tînăr,</l>
+                        <l>de ce tremură mîna tatălui meu.</l>
+                        <l>De la Shakespeare la Andreea</l>
+                        <l>nu e decît un pas,</l>
+                        <l>știu că nici unul dintre ei</l>
+                        <l>nu-l va face,</l>
+                        <l>dar întrebările acestea naive</l>
+                        <l>sînt haina de zi cu zi</l>
+                        <l>a unor geniale întrebări de duminică,</l>
+                        <l>și totuși, mulți oameni</l>
+                        <l>prea mulţi oameni au murit,</l>
+                        <l>averea cimitirelor a sporit,</l>
+                        <l>parcă ar mai fi avut loc</l>
+                        <l>un nou război mondial.</l>
+                        <l>toate naţiile pierd,</l>
+                        <l>nu cîştigă nimeni.</l>
+                        <l>a avut loc</l>
+                        <l>un război mondial secret,</l>
+                        <l>pe care nu l-a cîştigat nimeni.</l>
+                     </lg>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </body>
+   </text>
+</TEI>

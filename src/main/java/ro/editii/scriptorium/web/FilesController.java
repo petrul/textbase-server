@@ -3,9 +3,12 @@ package ro.editii.scriptorium.web;
 
 import editii.commons.xml.DomTool;
 import editii.commons.xml.XpathTool;
+import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.stereotype.Controller;
@@ -16,9 +19,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import ro.editii.scriptorium.tei.TeiRepo;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.xml.xpath.XPathExpressionException;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -28,6 +28,8 @@ import java.util.List;
 
 @Controller
 @RequestMapping("/api/files")
+@Log4j2
+@Hidden
 public class FilesController {
 
     @Autowired
@@ -45,21 +47,10 @@ public class FilesController {
     @GetMapping("/file")
     public void getFile(@RequestParam String name , HttpServletRequest request, HttpServletResponse response) {
         try {
-//            String urlStart = "/api/files/";
-//
-//            final String _path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-//            LOG.info("PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE : " + _path);
-//
-//            if (! _path.startsWith(urlStart))
-//                throw new RuntimeException("url should start with " + urlStart);
-
-//            String filename = _path.substring(urlStart.length());
-
             response.setHeader("Content-type", "application/xml; charset=utf-8");
             String filename = name;
             filename = filename.replaceAll("\\/+","\\/");
 
-            LOG.info(String.format("serving file [%s] ", filename));
             InputStream is = this.teiRepo.getStreamForName(filename);
 
             ServletOutputStream os = response.getOutputStream();
@@ -76,14 +67,7 @@ public class FilesController {
 
     /**
      * serves a fragment of a file
-     * @param file
-     * @param request
-     * @param response
-     * @throws IOException
-     * @throws SAXException
-     * @throws XPathExpressionException
      */
-//    @GetMapping("/{file}/**")
     public void getFragment(@PathVariable String file,
                             HttpServletRequest request,
                             HttpServletResponse response)
@@ -92,19 +76,15 @@ public class FilesController {
 
         String urlStart = "/api/files/" + file;
 
-        LOG.info(String.format("fragments from [%s] for xpath : [%s]", file, "xpath"));
 
         final String _path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        LOG.info("PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE : " + _path);
 
         if (! _path.startsWith(urlStart))
             throw new RuntimeException("url should start with " + urlStart);
         String xpath = _path.substring(urlStart.length());
 
-        LOG.info("xpath : " + xpath);
 
         File sourceFile = this.teiRepo.getFile(file);
-        LOG.info("" + sourceFile);
 
         XpathTool xt = new XpathTool(sourceFile);
         NodeList nodeList = xt.applyXpathForNodeSet(xpath);
@@ -114,8 +94,4 @@ public class FilesController {
         DomTool.serialize(grouped, response.getOutputStream());
 
     }
-
-
-
-    static Logger LOG = LoggerFactory.getLogger(FilesController.class);
 }

@@ -2,6 +2,8 @@
 /build/
 /bin/
 !gradle/wrapper/gradle-wrapper.jar
+.vscode/
+.claude/
 
 ### STS ###
 .apt_generated
@@ -27,3 +29,7 @@
 /.nb-gradle/
 
 **/.DS_Store
+
+# Built frontend apps dropped into webapp for static serving (node_modules,
+# Angular/Ionic build output, .angular cache) - generated, not source. #
+src/main/webapp/
