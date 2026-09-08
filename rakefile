@@ -26,15 +26,14 @@ task :default => [:clean, :build, :publish, "docker:publish"]
 
 desc "Run the complete CI pipeline: clean, test, build, build the Docker image, and publish it"
 task :ci => [:clean] do
-  Rake::Task[:test].invoke('ci')
+  Rake::Task[:test].invoke
   Rake::Task[:build].invoke('ci')
   Rake::Task['docker:publish'].invoke
 end
 
-task :test, [:task_profile] do |_task, args|
-    task_profile = args[:task_profile] || profile
-    puts "Running tests..."
-    sh "#{GRADLE} -P#{task_profile} test"
+task :test do
+    puts "Running unit and integration tests..."
+    sh "#{GRADLE} test"
 end
 
 task :run do

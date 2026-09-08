@@ -47,9 +47,22 @@ repositories {
 }
 
 tasks.named('test') {
+    // The conventional test task is the complete suite: local tests plus
+    // tests that exercise integration-deps. Plain `gradlew test` therefore
+    // defaults to the CI profile and its integration-deps environment.
+    useJUnitPlatform()
+    if (!['dev', 'ci', 'prod'].any { project.hasProperty(it) } &&
+            System.getenv('SPRING_PROFILES_ACTIVE') == null) {
+        systemProperty 'spring.profiles.active', 'ci'
+    }
+}
+
+tasks.register('unittest', Test) {
+    description = 'Runs only network-free unit and local component tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
-        // Keep the normal suite deterministic and network-free. Tests with
-        // this tag deliberately exercise LAN services and have their own task.
         excludeTags 'external'
     }
 }
@@ -62,8 +75,14 @@ tasks.register('integrationTest', Test) {
     useJUnitPlatform {
         includeTags 'external'
     }
-    shouldRunAfter tasks.named('test')
+    shouldRunAfter tasks.named('unittest')
     jvmArgs '-Xss10m'
+    systemProperty 'spring.profiles.active', 'ci'
+    doFirst {
+        if (profile != 'ci') {
+            throw new GradleException("integrationTest requires -Pci so it uses the CI/integration-deps configuration")
+        }
+    }
 }
 
 clean.doFirst {
@@ -244,9 +263,9 @@ bootRun {
 }
 
 
-test {
+tasks.withType(Test).configureEach {
     jvmArgs '-Xss10m' // needed for the recursion of serializing DOM Nodes
-    // $ ./gradlew -Pdev test   or   $ ./gradlew -Pci test
+    // $ ./gradlew -Pci unittest   or   $ ./gradlew -Pci test
     // NOTE: no '-Ptest' case here on purpose - every Gradle project with the
     // java/groovy plugins already has a task named 'test', and Gradle exposes
     // tasks as dynamic properties on the project, so hasProperty('test') is
@@ -256,7 +275,7 @@ test {
     if (project.hasProperty('ci'))  systemProperty 'spring.profiles.active', 'ci'
     if (project.hasProperty('prod'))  systemProperty 'spring.profiles.active', 'prod'
     final resolvedProfile = systemProperties['spring.profiles.active'] ?: System.getenv('SPRING_PROFILES_ACTIVE') ?: '(none)'
-    println "test: spring.profiles.active = " + resolvedProfile
+    println "${name}: spring.profiles.active = " + resolvedProfile
 //    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
 
@@ -383,45 +402,45 @@ def getProfile() {
     'dev' // default
 }
 println "profile: ${profile}"
-final envFile = file(".env.${profile}")
-
 // ProcessForkOptions covers both bootRun (JavaExec) and test (Test)
 tasks.withType(ProcessForkOptions).configureEach { task ->
-    // Prepend this block before the task actually runs
+    // TeamCity/Vault/process environment values take precedence. A local
+    // dotenv file is an optional developer fallback and never overwrites an
+    // injected secret.
     task.doFirst {
+        final taskProfile = task instanceof Test
+                ? (task.systemProperties['spring.profiles.active'] ?: profile)
+                : profile
+        final envFile = file(".env.${taskProfile}")
+        final props = new Properties()
         if (envFile.exists()) {
-            println "> Loading ${envFile.name} into task '${task.name}'"
-
-            Properties props = new Properties()
             envFile.withInputStream { props.load(it) }
-
-            println props
-
-            // the server cannot work without this, it'd better crash at the beginning
-            ["MILVUS_HOST",
-             "MILVUS_PORT",
-             "EMBEDDER_HOST",
-             "EMBEDDER_PORT",
-             "REPO_TEI_DIRS",
-             "CACHE_DIR",
-             "KAFKA_BROKERS",
-             "REPO_TEI_DIRS",
-             "CACHE_DIR",
-             "MYSQL_HOST",
-             "MYSQL_DB",
-             "MYSQL_USER",
-             "MYSQL_PASSWORD"
-            ].each {
-                if (props.getProperty(it) == null) throw new Exception("must have ${it} in .env.${profile}");
-            }
-
+            int fallbackCount = 0
             props.each { key, val ->
-                task.environment(key.toString(),
-                        val.toString()
-                                .replaceFirst('^~', System.getProperty('user.home')))
+                if (System.getenv(key.toString()) == null) {
+                    task.environment(key.toString(),
+                            val.toString().replaceFirst('^~', System.getProperty('user.home')))
+                    fallbackCount++
+                }
             }
-        } else {
-            println "> Warning: ${envFile.name} not found!"
+            println "> Applied ${fallbackCount} local fallback value(s) from ${envFile.name} to task '${task.name}'"
+        }
+
+        if (task.name != 'unittest') {
+            final requiredKeys = [
+                    "MILVUS_HOST", "MILVUS_PORT",
+                    "EMBEDDER_HOST", "EMBEDDER_PORT",
+                    "REPO_TEI_DIRS", "CACHE_DIR", "KAFKA_BROKERS",
+                    "MYSQL_HOST", "MYSQL_DB", "MYSQL_USER", "MYSQL_PASSWORD"
+            ]
+            final missingKeys = requiredKeys.findAll {
+                System.getenv(it) == null && props.getProperty(it) == null
+            }
+            if (!missingKeys.isEmpty()) {
+                throw new GradleException(
+                        "Missing required ${taskProfile} configuration: ${missingKeys.join(', ')}. " +
+                        "Inject it through Vault/TeamCity environment variables or provide ${envFile.name}.")
+            }
         }
     }
 }

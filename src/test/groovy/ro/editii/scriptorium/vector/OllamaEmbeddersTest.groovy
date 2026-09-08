@@ -1,6 +1,5 @@
 package ro.editii.scriptorium.vector
 
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -11,10 +10,6 @@ import org.springframework.boot.test.context.SpringBootTest
  * Hits the real Ollama server at ollama.host:ollama.port (zmeu.local:11434
  * by default - see VectorConfig) with the Ollama-backed Embedder beans.
  */
-@Disabled("depends on a real, reachable, uncontended Ollama server - GPU contention " +
-        "there (e.g. a concurrent OCR/vision job) makes this take minutes instead of " +
-        "seconds and dominates the whole suite's runtime; re-enable manually to test " +
-        "against a real Ollama instance")
 @Tag("external")
 @SpringBootTest(
         classes = [VectorConfig.class, MilvusService.class],

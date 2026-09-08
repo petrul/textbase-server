@@ -2,6 +2,37 @@ Run:
 
 $ ./gradlew bootrun -x test
 
+## Tests
+
+The `unittest` task is network-free: external-service tests are excluded, and
+application-context tests that do not exercise vector search use test doubles
+for Milvus and the embedder.
+
+```sh
+./gradlew -Pci unittest
+```
+
+Tests whose purpose is to exercise the real integration-deps services are
+tagged `external`. The conventional `test` task runs both the network-free and
+external tests. Under the CI profile it uses Milvus at `zmeu.local:20112`,
+sentence-transformers at `mini.local:11200`, and Ollama at
+`zmeu.local:11434`.
+
+```sh
+./gradlew test
+```
+
+`./gradlew -Pci integrationTest` remains available when only the tagged
+external tests are wanted. The complete `test` task defaults to the CI profile;
+`rake test` delegates to it directly, and `rake ci` invokes that same Rake test
+stage before building.
+
+CI configuration may be injected directly as environment variables (for
+example, TeamCity remote parameters backed by Vault). Process environment
+values take precedence over local `.env.<profile>` files, which are retained
+only as an optional developer fallback. Vault helper scripts and operational
+documentation live in `/home/petru/work/scripts/docker/vault/`.
+
 
 # TEXTBASE
 
@@ -170,7 +201,7 @@ Build/run profiles are Spring profiles (`-Dspring.profiles.active=...` or `SPRIN
 
 - `application.properties` — base config shared by all profiles (MySQL connection via `MYSQL_HOST`/`MYSQL_DB`/`MYSQL_USER`/`MYSQL_PASSWORD` env vars, port 8080, swagger paths, etc).
 - `application-dev.properties` — local dev config (currently has one developer's hardcoded paths, e.g. `/home/petru/work/scriptorium-masters/build/`; adjust to your own machine, or add your own `application-<yourprofile>.properties` if you want a separate one alongside it).
-- `application-ci.properties` — CI config, points at the `mini.local` MySQL/Kafka/Milvus test infra.
+- `application-ci.properties` — CI config for the `integration-deps` services: MySQL/Kafka on `mini.local`, and Milvus/embedder services on `zmeu.local`.
 - `application-air.properties`, `application-int.properties`, `application-cli.properties` — other environment-specific profiles (a "dev workstation" variant, the `mini.local` integration deployment, and the CLI importer, respectively).
 
 Local dev (backend only, skipping tests for speed):
@@ -184,22 +215,25 @@ $ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 $ ./gradlew -Pdev bootRun
 $ PROFILE=ci rake run
 ```
-> `-Pdev`, `-Pci`, and `-Pprod` select the corresponding Spring profile for `bootRun` and `test`.
+> `-Pdev`, `-Pci`, and `-Pprod` select the corresponding Spring profile for `bootRun` and all Gradle test tasks.
 
 # Tests
 
 Tests use JUnit 5 (`useJUnitPlatform()`), plus Spring Boot test starters (web/kafka/restclient) and an H2 in-memory DB dependency.
 
-Local/dev, activating the `dev` Spring profile (`application-dev.properties`):
+Run only network-free unit tests under the CI profile:
 ```bash
-$ ./gradlew -Pdev test
+$ ./gradlew -Pci unittest
 ```
 
-CI, activating the `ci` Spring profile (`application-ci.properties`, MySQL/Kafka/Milvus on `mini.local`):
+Run both unit and external integration tests. This task defaults to the CI profile, and the external tests use the services managed by `/home/petru/work/scripts/docker/integration-deps`:
 ```bash
-$ ./gradlew -Pci test
+$ ./gradlew test
 ```
-Equivalent to setting `SPRING_PROFILES_ACTIVE=dev`/`ci` before invoking Gradle (which still works too) — `-Pdev`/`-Pci` are just a shorter alias for the `test` task specifically (see `test { ... }` in `build.gradle`). With neither flag, no profile is activated and only `application.properties` (base config) applies.
+
+`./gradlew -Pci integrationTest` runs only the external integration tests. `rake test` delegates directly to the combined Gradle `test` task, and `rake ci` invokes it before building the image.
+
+Equivalent to setting `SPRING_PROFILES_ACTIVE=dev`/`ci` before invoking Gradle (which still works too) — `-Pdev`/`-Pci` are shorter aliases. With neither flag, no profile is activated and only `application.properties` (base config) applies.
 
 Docker image (built from `docker/dockerfile`, requires the jar already built via `./gradlew build`):
 ```bash

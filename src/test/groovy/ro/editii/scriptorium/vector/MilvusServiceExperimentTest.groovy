@@ -16,6 +16,8 @@ import static ro.editii.scriptorium.GTestUtil.p
         properties = [
                 "milvus.host=zmeu.local",
                 "milvus.port=20112",
+                "embedder.host=zmeu.local",
+                "embedder.port=11434",
                 "spring.main.allow-bean-definition-overriding=true"
         ])
 @Import(TestConfig.class)
