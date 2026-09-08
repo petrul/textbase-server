@@ -1,6 +1,7 @@
 package ro.editii.scriptorium.vector
 
 
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -13,11 +14,12 @@ import static ro.editii.scriptorium.GTestUtil.p
 @SpringBootTest(
         classes = [ VectorConfig.class, MilvusService.class, VectorSearchAvailability.class, MilvusTextSearchService.class],
         properties = [
-                "milvus.host=mini.local",
+                "milvus.host=zmeu.local",
                 "milvus.port=20112",
                 "spring.main.allow-bean-definition-overriding=true"
         ])
 @Import(TestConfig.class)
+@Tag("external")
 class MilvusServiceExperimentTest {
 
     @Autowired MilvusService milvusService

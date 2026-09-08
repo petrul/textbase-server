@@ -1,6 +1,7 @@
 package ro.editii.scriptorium.vector
 
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -14,12 +15,13 @@ import org.springframework.boot.test.context.SpringBootTest
         "there (e.g. a concurrent OCR/vision job) makes this take minutes instead of " +
         "seconds and dominates the whole suite's runtime; re-enable manually to test " +
         "against a real Ollama instance")
+@Tag("external")
 @SpringBootTest(
         classes = [VectorConfig.class, MilvusService.class],
         properties = [
-            "ollama.host=zmeu.local",
-            "ollama.port=11434",
-            "milvus.host=mini.local",
+            "embedder.host=zmeu.local",
+            "embedder.port=11434",
+            "milvus.host=zmeu.local",
             "milvus.port=20112",
         ])
 class OllamaEmbeddersTest {

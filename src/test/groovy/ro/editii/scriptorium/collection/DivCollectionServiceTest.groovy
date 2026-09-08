@@ -26,6 +26,7 @@ import ro.editii.scriptorium.service.AdminService
 import ro.editii.scriptorium.service.DivService
 import ro.editii.scriptorium.tei.TeiRepo
 import ro.editii.scriptorium.vector.FakeEmbedderTestConfig
+import ro.editii.scriptorium.vector.NetworkFreeVectorTestConfig
 
 import static ro.editii.scriptorium.TestUtils.TEI_ELEM
 
@@ -53,7 +54,8 @@ import static ro.editii.scriptorium.TestUtils.TEI_ELEM
 ])
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class, MultilangTeiRepoConfig.class])
+        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class,
+                   MultilangTeiRepoConfig.class, NetworkFreeVectorTestConfig.class])
 @EnableAutoConfiguration(exclude = KafkaAutoConfiguration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DivCollectionServiceTest {

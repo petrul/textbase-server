@@ -33,19 +33,20 @@ import static ro.editii.scriptorium.TestUtils.TEI_ELEM
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.main.allow-bean-definition-overriding=true",
         "spring.jpa.hibernate.ddl-auto=create",
-        "milvus.host=mini.local",
+        "milvus.host=zmeu.local",
         "milvus.port=20112",
         "milvus.collection=test_tb_paras_qwen3_embedding_4b_duplicate",
         "embeddings.host=mini.local",
         "embeddings.port=11200",
-        "ollama.host=zmeu.local",
-        "ollama.port=11434",
+        "embedder.host=zmeu.local",
+        "embedder.port=11434",
         "textbase.advertised.url=http://localhost:8080"
 ])
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class])
 @EnableAutoConfiguration(exclude = KafkaAutoConfiguration.class)
+@Tag("external")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SearchITest {
 

@@ -2,6 +2,7 @@ package ro.editii.scriptorium.vector
 
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
@@ -27,17 +28,18 @@ import static ro.editii.scriptorium.GTestUtil.p
             // list, so VectorConfig's real bean would win instead.
             FakeEmbedderTestConfig.class],
         properties = [
-        "milvus.host=mini.local",
+        "milvus.host=zmeu.local",
         "milvus.port=20112",
         "milvus.collection=test_tb_paras_qwen3_embedding_4b_duplicate",
         "embeddings.host=mini.local",
         "embeddings.port=11200",
-        "ollama.host=zmeu.local",
-        "ollama.port=11434",
+        "embedder.host=zmeu.local",
+        "embedder.port=11434",
         "textbase-dl.dir=~/data/textbase-dl",
         "spring.main.allow-bean-definition-overriding=true"
 ])
 @Import(TestConfig.class)
+@Tag("external")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MilvusServiceTest {
 

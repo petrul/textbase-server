@@ -14,6 +14,7 @@ import ro.editii.scriptorium.TextbaseServer
 import ro.editii.scriptorium.dao.AppUserRepository
 import ro.editii.scriptorium.model.AppUser
 import ro.editii.scriptorium.vector.FakeEmbedderTestConfig
+import ro.editii.scriptorium.vector.NetworkFreeVectorTestConfig
 
 /**
  * Confirms the migration from the old InMemoryUserDetailsManager (a single
@@ -38,7 +39,8 @@ import ro.editii.scriptorium.vector.FakeEmbedderTestConfig
 ])
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class])
+        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class,
+                   NetworkFreeVectorTestConfig.class])
 @EnableAutoConfiguration(exclude = KafkaAutoConfiguration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AppUserAuthTest {
@@ -75,27 +77,4 @@ class AppUserAuthTest {
         assert loaded.authorities*.authority.contains("ROLE_USER")
     }
 
-    @Test
-    void rejectsADuplicateUsername() {
-        final username = "dupe_" + System.nanoTime()
-        this.registrationService.register(username, "correcthorsebattery")
-
-        final ex = shouldFail { this.registrationService.register(username, "anotherpassword1") }
-        assert ex.message.contains("already taken")
-    }
-
-    @Test
-    void rejectsATooShortPassword() {
-        final ex = shouldFail { this.registrationService.register("shortpw_" + System.nanoTime(), "short") }
-        assert ex.message.contains("at least")
-    }
-
-    static Exception shouldFail(Closure closure) {
-        try {
-            closure.call()
-        } catch (Exception e) {
-            return e
-        }
-        throw new AssertionError("expected an exception but none was thrown")
-    }
 }

@@ -25,6 +25,7 @@ import ro.editii.scriptorium.dto.HitDto
 import ro.editii.scriptorium.model.Languages
 import ro.editii.scriptorium.service.AdminService
 import ro.editii.scriptorium.vector.FakeEmbedderTestConfig
+import ro.editii.scriptorium.vector.NetworkFreeVectorTestConfig
 
 import java.nio.file.Files
 
@@ -61,7 +62,8 @@ import static ro.editii.scriptorium.TestUtils.TEI_ELEM
         // MultilangTeiRepoConfig listed after TestConfig so its teiRepo bean
         // overrides TestConfig's (allow-bean-definition-overriding above) -
         // verified by the exact-count assertion in beforeAll below.
-        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class, MultilangTeiRepoConfig.class])
+        classes = [TextbaseServer.class, TestConfig.class, FakeEmbedderTestConfig.class,
+                   MultilangTeiRepoConfig.class, NetworkFreeVectorTestConfig.class])
 @EnableAutoConfiguration(exclude = KafkaAutoConfiguration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LuceneSearchITest {

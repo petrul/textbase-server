@@ -47,7 +47,23 @@ repositories {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // Keep the normal suite deterministic and network-free. Tests with
+        // this tag deliberately exercise LAN services and have their own task.
+        excludeTags 'external'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs tests that deliberately exercise external integration services.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'external'
+    }
+    shouldRunAfter tasks.named('test')
+    jvmArgs '-Xss10m'
 }
 
 clean.doFirst {
